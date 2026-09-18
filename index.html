@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cairn Pipeline Analyzer</title>
+<style>
+  :root{
+    --navy:#0d1b2a;
+    --navy2:#13283d;
+    --gold:#c6a15b;
+    --cream:#f7f4ee;
+    --white:#ffffff;
+    --ink:#17202a;
+    --muted:#687380;
+    --border:#d9dee4;
+    --green:#1f7a5a;
+    --amber:#a26a00;
+    --red:#a83b3b;
+    --gray:#6b7280;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--cream);color:var(--ink)}
+  .shell{max-width:1220px;margin:0 auto;padding:28px 22px 60px}
+  .hero{background:linear-gradient(135deg,var(--navy),var(--navy2));border-radius:22px;padding:30px;color:white;box-shadow:0 14px 34px rgba(13,27,42,.14)}
+  .brand{display:flex;align-items:center;gap:12px;font-size:13px;letter-spacing:.13em;text-transform:uppercase;color:#e9ddc6;font-weight:700}
+  .mark{width:30px;height:30px;border:1px solid rgba(255,255,255,.35);border-radius:9px;display:grid;place-items:center;color:var(--gold);font-weight:900}
+  h1{font-size:38px;line-height:1.05;margin:16px 0 10px;letter-spacing:-.035em}
+  .sub{font-size:17px;line-height:1.55;color:#dbe4ed;max-width:820px}
+  .privacy{display:inline-flex;align-items:center;gap:8px;margin-top:18px;padding:9px 12px;border-radius:999px;background:rgba(255,255,255,.08);font-size:13px;color:#e6eef6}
+  .upload{margin-top:20px;background:white;border:1px solid var(--border);border-radius:18px;padding:22px}
+  .drop{border:1.5px dashed #9da8b3;border-radius:14px;padding:28px;text-align:center;background:#fbfcfd;cursor:pointer;transition:.2s}
+  .drop:hover,.drop.drag{border-color:var(--gold);background:#fffdf8}
+  .drop strong{display:block;font-size:18px;margin-bottom:6px}
+  .drop span{color:var(--muted);font-size:14px}
+  input[type=file]{display:none}
+  .row{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px}
+  button,.btn{appearance:none;border:0;border-radius:10px;padding:11px 15px;font-weight:700;cursor:pointer;font-size:14px}
+  .primary{background:var(--navy);color:white}
+  .secondary{background:#eef1f4;color:var(--navy)}
+  .ghost{background:white;border:1px solid var(--border);color:var(--navy)}
+  .hint{font-size:12px;color:var(--muted);margin-top:12px;line-height:1.5}
+  .hidden{display:none!important}
+  .mapping{margin-top:20px;background:white;border:1px solid var(--border);border-radius:18px;padding:20px}
+  .mapping h3,.section-title{margin:0 0 12px;font-size:18px}
+  .mapping-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+  .map-item{border:1px solid var(--border);border-radius:10px;padding:10px}
+  .map-item label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+  select{width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:white}
+  .results{margin-top:24px}
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+  .kpi{background:white;border:1px solid var(--border);border-radius:16px;padding:16px}
+  .kpi .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+  .kpi .value{font-size:28px;margin-top:7px;font-weight:800;letter-spacing:-.03em}
+  .kpi .small{font-size:12px;color:var(--muted);margin-top:4px}
+  .panel{background:white;border:1px solid var(--border);border-radius:18px;padding:20px;margin-top:14px}
+  .summary-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:16px}
+  .bar{height:10px;background:#edf0f2;border-radius:999px;overflow:hidden;display:flex;margin-top:8px}
+  .seg{height:100%}
+  .healthy{background:var(--green)} .watch{background:#d99916}.risk{background:var(--red)}.stalled{background:var(--gray)}.commit{background:#7b3f98}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--muted)}
+  .legend b{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+  .deal-controls{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .deal-list{display:grid;gap:12px}
+  .deal{border:1px solid var(--border);border-radius:14px;padding:16px}
+  .deal-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+  .deal-name{font-weight:800;font-size:17px}
+  .meta{font-size:12px;color:var(--muted);margin-top:4px}
+  .pill{display:inline-flex;align-items:center;border-radius:999px;padding:6px 9px;font-size:11px;font-weight:800;color:white;white-space:nowrap}
+  .pill.Healthy{background:var(--green)} .pill.Watch{background:#d99916}.pill.At-Risk{background:var(--red)}.pill.Stalled{background:var(--gray)}.pill.Unsupported-Commit{background:#7b3f98}
+  .diagnosis{margin:12px 0 10px;line-height:1.5;font-size:14px}
+  .deal-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .deal h4{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:4px 0 6px}
+  ul{margin:0;padding-left:18px}
+  li{margin:4px 0;font-size:13px;line-height:1.4}
+  .empty{color:var(--muted);font-size:13px}
+  .footer-note{font-size:12px;color:var(--muted);line-height:1.5;margin-top:18px}
+  .callout{border-left:4px solid var(--gold);padding:12px 14px;background:#fffaf0;border-radius:8px;font-size:13px;line-height:1.5}
+  @media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}.summary-grid{grid-template-columns:1fr}.deal-cols{grid-template-columns:1fr}}
+  @media(max-width:560px){h1{font-size:31px}.kpis{grid-template-columns:1fr}.shell{padding:14px 12px 40px}.hero{padding:22px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <section class="hero">
+    <div class="brand"><div class="mark">C</div> Cairn GTM</div>
+    <h1>Pipeline Analyzer</h1>
+    <div class="sub">Upload a CRM pipeline export and turn stage labels into evidence: deal risk, missing stakeholders, stale opportunities, forecast quality, and concrete next actions.</div>
+    <div class="privacy">🔒 Your data stays in your browser. This prototype does not upload or store your CSV.</div>
+  </section>
+
+  <section class="upload">
+    <label class="drop" id="dropZone" for="fileInput">
+      <strong>Drop a pipeline CSV here</strong>
+      <span>or click to choose a file</span>
+    </label>
+    <input id="fileInput" type="file" accept=".csv,text/csv" />
+    <div class="row">
+      <button id="loadSample" class="secondary">Load sample pipeline</button>
+      <button id="reset" class="ghost">Reset</button>
+    </div>
+    <div class="hint">Minimum useful fields: opportunity name, amount, stage, close date. The analyzer becomes more useful as you add evidence fields like last activity, next step, champion, economic buyer, budget, procurement, security/legal, and stakeholder count.</div>
+  </section>
+
+  <section id="mappingSection" class="mapping hidden">
+    <h3>Field mapping</h3>
+    <div class="hint" style="margin:0 0 12px">Cairn matched your columns automatically. Adjust anything that looks wrong, then analyze.</div>
+    <div id="mappingGrid" class="mapping-grid"></div>
+    <div class="row">
+      <button id="analyzeBtn" class="primary">Analyze pipeline</button>
+    </div>
+  </section>
+
+  <section id="results" class="results hidden">
+    <div class="kpis">
+      <div class="kpi"><div class="label">Total Pipeline</div><div id="kTotal" class="value">$0</div><div id="kDeals" class="small">0 deals</div></div>
+      <div class="kpi"><div class="label">Supported Pipeline</div><div id="kSupported" class="value">$0</div><div class="small">Healthy + Watch</div></div>
+      <div class="kpi"><div class="label">At Risk</div><div id="kRisk" class="value">$0</div><div id="kRiskDeals" class="small">0 deals</div></div>
+      <div class="kpi"><div class="label">Unsupported Commit</div><div id="kCommit" class="value">$0</div><div id="kCommitDeals" class="small">0 deals</div></div>
+      <div class="kpi"><div class="label">Stalled</div><div id="kStalled" class="value">$0</div><div id="kStalledDeals" class="small">0 deals</div></div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="panel">
+        <div class="section-title">Pipeline quality</div>
+        <div id="qualityText" class="callout"></div>
+        <div id="qualityBar" class="bar"></div>
+        <div class="legend">
+          <span><b class="healthy"></b>Healthy</span><span><b class="watch"></b>Watch</span>
+          <span><b class="risk"></b>At Risk</span><span><b class="stalled"></b>Stalled</span>
+          <span><b class="commit"></b>Unsupported Commit</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="section-title">Most common gaps</div>
+        <div id="commonGaps"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="deal-controls">
+        <div>
+          <div class="section-title" style="margin-bottom:3px">Deal review</div>
+          <div id="dealCount" class="hint" style="margin:0"></div>
+        </div>
+        <div class="row" style="margin:0">
+          <select id="filterStatus" style="width:auto">
+            <option value="All">All diagnoses</option>
+            <option>Healthy</option><option>Watch</option><option>At Risk</option><option>Stalled</option><option>Unsupported Commit</option>
+          </select>
+          <button id="downloadBtn" class="secondary">Download analysis CSV</button>
+        </div>
+      </div>
+      <div id="dealList" class="deal-list"></div>
+    </div>
+
+    <div class="footer-note">Cairn Pipeline Analyzer V1 is intentionally evidence-based and rule-driven. It does not know whether a deal is truly good or bad; it highlights where CRM confidence appears stronger than the buying evidence available in the file.</div>
+  </section>
+</div>
+
+<script>
+const fieldDefs = [
+  ["name","Opportunity Name",["opportunity name","deal name","opportunity","deal","name","account opportunity"]],
+  ["amount","Amount",["amount","arr","acv","deal value","value","opportunity amount"]],
+  ["stage","Stage",["stage","deal stage","opportunity stage","sales stage"]],
+  ["forecast","Forecast Category",["forecast category","forecast","forecast status","forecast category name"]],
+  ["closeDate","Close Date",["close date","expected close date","close","close_date"]],
+  ["lastActivity","Last Activity Date",["last activity date","last activity","last touch","last contacted","last engagement"]],
+  ["nextStep","Next Step",["next step","next steps","next action","next activity"]],
+  ["nextMeeting","Next Meeting Date",["next meeting date","next meeting","next activity date","next step date"]],
+  ["champion","Champion",["champion","has champion","champion identified"]],
+  ["economicBuyer","Economic Buyer",["economic buyer","exec sponsor","executive sponsor","decision maker","economic buyer identified"]],
+  ["stakeholders","Stakeholder Count",["stakeholder count","contacts","number of contacts","contact count","stakeholders"]],
+  ["budget","Budget Confirmed",["budget confirmed","budget","funding confirmed"]],
+  ["procurement","Procurement Status",["procurement status","procurement","procurement stage"]],
+  ["securityLegal","Security Legal Status",["security legal status","security/legal","security status","legal status","security and legal"]],
+  ["problem","Problem Use Case",["problem use case","business pain","use case","pain","problem","business problem"]],
+  ["decision","Decision Process",["decision process","buying process","decision criteria","process"]],
+  ["timeline","Customer Timeline",["customer timeline","compelling event","timeline evidence","why now","customer deadline"]],
+  ["owner","Owner",["owner","deal owner","opportunity owner","sales rep"]]
+];
+
+let rawRows=[], headers=[], mapping={}, analyzed=[];
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
+
+function normalize(s){return String(s||"").trim().toLowerCase().replace(/[_\-]+/g," ").replace(/\s+/g," ")}
+function parseCSV(text){
+  const rows=[]; let row=[], cell="", q=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i], nx=text[i+1];
+    if(q){
+      if(ch === '"' && nx === '"'){cell+='"';i++}
+      else if(ch === '"'){q=false}
+      else cell+=ch;
+    } else {
+      if(ch === '"') q=true;
+      else if(ch === ','){row.push(cell);cell=""}
+      else if(ch === '\n'){row.push(cell);rows.push(row);row=[];cell=""}
+      else if(ch !== '\r') cell+=ch;
+    }
+  }
+  if(cell.length || row.length){row.push(cell);rows.push(row)}
+  if(!rows.length) return {headers:[],rows:[]};
+  const hs=rows[0].map(x=>x.trim());
+  const data=rows.slice(1).filter(r=>r.some(c=>String(c).trim()!=="")).map(r=>{
+    const o={}; hs.forEach((h,i)=>o[h]=(r[i]??"").trim()); return o;
+  });
+  return {headers:hs,rows:data};
+}
+
+function autoMap(){
+  mapping={};
+  const norms=headers.map(h=>normalize(h));
+  for(const [key,label,syns] of fieldDefs){
+    let idx=-1;
+    for(const syn of syns){ idx=norms.indexOf(normalize(syn)); if(idx>=0) break; }
+    if(idx<0){
+      idx=norms.findIndex(h=>syns.some(s=>h.includes(normalize(s)) || normalize(s).includes(h)));
+    }
+    mapping[key]=idx>=0?headers[idx]:"";
+  }
+}
+
+function renderMapping(){
+  const grid=$("mappingGrid"); grid.innerHTML="";
+  fieldDefs.forEach(([key,label])=>{
+    const div=document.createElement("div"); div.className="map-item";
+    const opts=['<option value="">Not mapped</option>'].concat(headers.map(h=>`<option ${mapping[key]===h?'selected':''}>${esc(h)}</option>`));
+    div.innerHTML=`<label>${esc(label)}</label><select data-key="${key}">${opts.join("")}</select>`;
+    grid.appendChild(div);
+  });
+  grid.querySelectorAll("select").forEach(sel=>sel.onchange=e=>mapping[e.target.dataset.key]=e.target.value);
+}
+
+function loadText(text){
+  const parsed=parseCSV(text); headers=parsed.headers; rawRows=parsed.rows;
+  if(!headers.length || !rawRows.length){alert("I couldn't find usable rows in that CSV.");return}
+  autoMap(); renderMapping();
+  $("mappingSection").classList.remove("hidden");
+  $("results").classList.add("hidden");
+}
+
+function val(row,key){const col=mapping[key]; return col?String(row[col]??"").trim():""}
+function yes(v){return /^(yes|y|true|1|confirmed|identified|complete|completed)$/i.test(v.trim())}
+function no(v){return /^(no|n|false|0|not identified|none)$/i.test(v.trim())}
+function unknown(v){return !v || /unknown|n\/a|na|not sure|tbd/i.test(v)}
+function money(v){const n=parseFloat(String(v||"").replace(/[$,\s]/g,""));return Number.isFinite(n)?n:0}
+function date(v){ if(!v)return null; const d=new Date(v); return isNaN(d)?null:d}
+function daysBetween(a,b){return Math.round((b-a)/(1000*60*60*24))}
+function fmtMoney(n){return new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(n)}
+function isAdvanced(stage){
+  const s=normalize(stage);
+  return /(proposal|evaluation|pilot|poc|negoti|contract|legal|procurement|commit|closing|final)/.test(s)
+}
+function isCommit(fc){return /commit/i.test(fc)}
+function statusClass(s){return s.replace(/\s+/g,"-")}
+
+function analyzeRow(row){
+  const now=new Date();
+  const d={
+    name:val(row,"name")||"Unnamed opportunity",
+    amount:money(val(row,"amount")),
+    stage:val(row,"stage")||"Unknown stage",
+    forecast:val(row,"forecast")||"",
+    closeDate:val(row,"closeDate"),
+    owner:val(row,"owner"),
+    evidence:[], gaps:[], recommendations:[], penalties:0
+  };
+
+  const last=date(val(row,"lastActivity"));
+  const close=date(val(row,"closeDate"));
+  const nextMeeting=date(val(row,"nextMeeting"));
+  const nextStep=val(row,"nextStep");
+  const champion=val(row,"champion");
+  const eb=val(row,"economicBuyer");
+  const stakeholders=parseInt(val(row,"stakeholders"),10);
+  const budget=val(row,"budget");
+  const procurement=val(row,"procurement");
+  const sec=val(row,"securityLegal");
+  const problem=val(row,"problem");
+  const decision=val(row,"decision");
+  const timeline=val(row,"timeline");
+
+  const staleDays=last?daysBetween(last,now):null;
+  const daysToClose=close?daysBetween(now,close):null;
+  const advanced=isAdvanced(d.stage);
+
+  if(last && staleDays<=14)d.evidence.push(`Recent customer activity (${staleDays} days ago)`);
+  else if(last && staleDays>30){d.gaps.push(`No meaningful activity for ${staleDays} days`);d.penalties+=4}
+  else if(last && staleDays>14){d.gaps.push(`Last activity was ${staleDays} days ago`);d.penalties+=2}
+  else {d.gaps.push("No last-activity evidence");d.penalties+=2}
+
+  if(nextStep)d.evidence.push("Concrete next step is documented");
+  else {d.gaps.push("No concrete next step");d.penalties+=2}
+
+  if(nextMeeting && daysBetween(now,nextMeeting)>=-1)d.evidence.push("Future customer meeting is scheduled");
+  else if(advanced){d.gaps.push("No future customer meeting is scheduled");d.penalties+=2}
+
+  if(yes(champion))d.evidence.push("Champion identified");
+  else if(advanced){d.gaps.push("No confirmed champion");d.penalties+=2}
+
+  if(yes(eb))d.evidence.push("Economic buyer / executive sponsor identified");
+  else if(advanced){d.gaps.push("No confirmed economic buyer / executive sponsor");d.penalties+=3}
+
+  if(Number.isFinite(stakeholders)){
+    if(stakeholders>=4)d.evidence.push(`${stakeholders} stakeholders mapped`);
+    else if(stakeholders<=1){d.gaps.push("Deal appears single-threaded");d.penalties+=3}
+    else if(advanced){d.gaps.push(`Only ${stakeholders} stakeholders mapped`);d.penalties+=1}
+  } else if(advanced){d.gaps.push("Stakeholder coverage is unknown");d.penalties+=1}
+
+  if(yes(budget))d.evidence.push("Budget is confirmed");
+  else if(advanced && (no(budget)||unknown(budget))){d.gaps.push("Budget is not confirmed");d.penalties+=2}
+
+  const p=normalize(procurement);
+  if(/complete/.test(p))d.evidence.push("Procurement complete");
+  else if(/progress|started|review/.test(p))d.evidence.push("Procurement is in progress");
+  else if(advanced && (unknown(procurement)||/not started/.test(p))){d.gaps.push("Procurement has not meaningfully started");d.penalties+=2}
+
+  const sl=normalize(sec);
+  if(/complete/.test(sl))d.evidence.push("Security/legal complete");
+  else if(/progress|started|review/.test(sl))d.evidence.push("Security/legal is in progress");
+  else if(advanced && (unknown(sec)||/not started/.test(sl))){d.gaps.push("Security/legal status is unresolved");d.penalties+=2}
+
+  if(problem)d.evidence.push("Business problem / use case is documented");
+  else {d.gaps.push("Business problem / use case is not documented");d.penalties+=2}
+
+  if(decision && !/unknown|partial/i.test(decision))d.evidence.push("Decision process is known");
+  else if(advanced){d.gaps.push("Decision process is not fully known");d.penalties+=2}
+
+  if(timeline)d.evidence.push("Customer-driven timeline / compelling event is documented");
+  else if(close && daysToClose!==null && daysToClose<=45){d.gaps.push("Close date lacks a documented customer-driven reason");d.penalties+=3}
+
+  const keyCommitGaps = [
+    !yes(eb),
+    !yes(champion),
+    !(yes(budget)),
+    !decision || /unknown|partial/i.test(decision),
+    !timeline,
+    !nextStep,
+    (staleDays===null || staleDays>21)
+  ].filter(Boolean).length;
+
+  let status;
+  if(isCommit(d.forecast) && keyCommitGaps>=3) status="Unsupported Commit";
+  else if(staleDays!==null && staleDays>30) status="Stalled";
+  else if(d.penalties>=10) status="At Risk";
+  else if(d.penalties>=4) status="Watch";
+  else status="Healthy";
+
+  const rec=[];
+  if(!yes(eb) && advanced)rec.push("Get access to the economic buyer or executive sponsor and validate decision authority.");
+  if(!yes(champion) && advanced)rec.push("Identify a champion who will actively help navigate the buying process.");
+  if(Number.isFinite(stakeholders) && stakeholders<=2 && advanced)rec.push("Multithread the deal beyond the current contact set.");
+  if(!nextStep)rec.push("Create a dated, customer-owned next step before advancing the opportunity.");
+  if(staleDays===null || staleDays>21)rec.push("Revalidate customer urgency before carrying the current close date.");
+  if(!timeline && close && daysToClose!==null && daysToClose<=45)rec.push("Tie the close date to a customer-driven deadline or compelling event.");
+  if(!yes(budget) && advanced)rec.push("Confirm budget source, amount, and approval path.");
+  if((unknown(procurement)||/not started/i.test(procurement)) && advanced)rec.push("Map procurement steps and expected duration now rather than after verbal agreement.");
+  if((unknown(sec)||/not started/i.test(sec)) && advanced)rec.push("Confirm whether security/legal review is required and start it early.");
+  if(!decision || /unknown|partial/i.test(decision))rec.push("Document the decision process, criteria, and remaining approvals.");
+  if(!problem)rec.push("Clarify the measurable business problem before treating activity as deal progress.");
+  d.recommendations=rec.slice(0,4);
+
+  if(status==="Healthy") d.diagnosis="Buying evidence broadly supports the current stage and close plan. The main job is to preserve momentum and avoid introducing unnecessary execution risk.";
+  if(status==="Watch") d.diagnosis="The opportunity is progressing, but there are meaningful evidence gaps that could make the current stage or timing optimistic.";
+  if(status==="At Risk") d.diagnosis="The CRM position appears materially stronger than the available buying evidence. Several core elements of the decision process are unresolved.";
+  if(status==="Stalled") d.diagnosis="The opportunity shows limited recent customer-driven progression. The immediate question is whether urgency still exists before investing more forecast confidence.";
+  if(status==="Unsupported Commit") d.diagnosis="This deal is forecast as Commit, but the available evidence does not currently support that level of confidence. Revalidate the buyer, process, timeline, and next action.";
+
+  d.status=status; d.staleDays=staleDays; d.daysToClose=daysToClose;
+  return d;
+}
+
+function runAnalysis(){
+  analyzed=rawRows.map(analyzeRow);
+  renderResults();
+}
+
+function renderResults(){
+  $("results").classList.remove("hidden");
+  const total=analyzed.reduce((a,d)=>a+d.amount,0);
+  const supported=analyzed.filter(d=>["Healthy","Watch"].includes(d.status)).reduce((a,d)=>a+d.amount,0);
+  const risk=analyzed.filter(d=>d.status==="At Risk").reduce((a,d)=>a+d.amount,0);
+  const commit=analyzed.filter(d=>d.status==="Unsupported Commit").reduce((a,d)=>a+d.amount,0);
+  const stalled=analyzed.filter(d=>d.status==="Stalled").reduce((a,d)=>a+d.amount,0);
+
+  $("kTotal").textContent=fmtMoney(total); $("kDeals").textContent=`${analyzed.length} deals`;
+  $("kSupported").textContent=fmtMoney(supported);
+  $("kRisk").textContent=fmtMoney(risk); $("kRiskDeals").textContent=`${analyzed.filter(d=>d.status==="At Risk").length} deals`;
+  $("kCommit").textContent=fmtMoney(commit); $("kCommitDeals").textContent=`${analyzed.filter(d=>d.status==="Unsupported Commit").length} deals`;
+  $("kStalled").textContent=fmtMoney(stalled); $("kStalledDeals").textContent=`${analyzed.filter(d=>d.status==="Stalled").length} deals`;
+
+  const pct=total?Math.round((supported/total)*100):0;
+  $("qualityText").innerHTML=`<strong>${pct}% of pipeline value has enough evidence to classify as Healthy or Watch.</strong> The remaining ${100-pct}% is either at risk, stalled, or carried as Commit without sufficient support.`;
+  const order=[["Healthy","healthy"],["Watch","watch"],["At Risk","risk"],["Stalled","stalled"],["Unsupported Commit","commit"]];
+  $("qualityBar").innerHTML=order.map(([s,c])=>{
+    const v=analyzed.filter(d=>d.status===s).reduce((a,d)=>a+d.amount,0);
+    const w=total?(v/total*100):0;
+    return `<div class="seg ${c}" style="width:${w}%"></div>`;
+  }).join("");
+
+  const gapCounts={};
+  analyzed.forEach(d=>d.gaps.forEach(g=>{
+    const key=g.replace(/\d+ days/g,"recent-activity gap").replace(/Only \d+ stakeholders mapped/,"Limited stakeholder coverage");
+    gapCounts[key]=(gapCounts[key]||0)+1;
+  }));
+  const top=Object.entries(gapCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  $("commonGaps").innerHTML=top.length?`<ul>${top.map(([g,n])=>`<li><strong>${n}</strong> deal${n>1?"s":""}: ${esc(g)}</li>`).join("")}</ul>`:`<div class="empty">No recurring gaps found.</div>`;
+
+  renderDeals();
+}
+
+function renderDeals(){
+  const filter=$("filterStatus").value;
+  const ds=(filter==="All"?analyzed:analyzed.filter(d=>d.status===filter)).slice().sort((a,b)=>{
+    const rank={"Unsupported Commit":0,"Stalled":1,"At Risk":2,"Watch":3,"Healthy":4};
+    return rank[a.status]-rank[b.status] || b.amount-a.amount;
+  });
+  $("dealCount").textContent=`Showing ${ds.length} of ${analyzed.length} opportunities`;
+  $("dealList").innerHTML=ds.map(d=>`
+    <div class="deal">
+      <div class="deal-top">
+        <div>
+          <div class="deal-name">${esc(d.name)}</div>
+          <div class="meta">${fmtMoney(d.amount)} • ${esc(d.stage)}${d.forecast?` • ${esc(d.forecast)}`:""}${d.closeDate?` • close ${esc(d.closeDate)}`:""}${d.owner?` • ${esc(d.owner)}`:""}</div>
+        </div>
+        <span class="pill ${statusClass(d.status)}">${esc(d.status)}</span>
+      </div>
+      <div class="diagnosis">${esc(d.diagnosis)}</div>
+      <div class="deal-cols">
+        <div><h4>Evidence</h4>${d.evidence.length?`<ul>${d.evidence.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:`<div class="empty">No supporting evidence was found in the mapped fields.</div>`}</div>
+        <div><h4>Gaps</h4>${d.gaps.length?`<ul>${d.gaps.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:`<div class="empty">No major evidence gaps detected.</div>`}</div>
+      </div>
+      <h4 style="margin-top:14px">Recommended action</h4>
+      ${d.recommendations.length?`<ul>${d.recommendations.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:`<div class="empty">Maintain momentum and keep the buying evidence current.</div>`}
+    </div>`).join("");
+}
+
+function downloadAnalysis(){
+  const fields=["Opportunity","Amount","Stage","Forecast","Close Date","Diagnosis","Evidence","Gaps","Recommendations"];
+  const rows=analyzed.map(d=>[
+    d.name,d.amount,d.stage,d.forecast,d.closeDate,d.status,
+    d.evidence.join(" | "),d.gaps.join(" | "),d.recommendations.join(" | ")
+  ]);
+  const quote=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+  const text=[fields,...rows].map(r=>r.map(quote).join(",")).join("\n");
+  const blob=new Blob([text],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="cairn_pipeline_analysis.csv";a.click();URL.revokeObjectURL(a.href);
+}
+
+$("fileInput").addEventListener("change",e=>{
+  const file=e.target.files[0]; if(!file)return;
+  const reader=new FileReader(); reader.onload=()=>loadText(reader.result); reader.readAsText(file);
+});
+const dz=$("dropZone");
+["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add("drag")}));
+["dragleave","drop"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove("drag")}));
+dz.addEventListener("drop",e=>{
+  const file=e.dataTransfer.files[0]; if(!file)return;
+  const reader=new FileReader(); reader.onload=()=>loadText(reader.result); reader.readAsText(file);
+});
+$("loadSample").onclick=()=>{
+const sample=`Opportunity Name,Amount,Stage,Forecast Category,Close Date,Last Activity Date,Next Step,Next Meeting Date,Champion,Economic Buyer,Stakeholder Count,Budget Confirmed,Procurement Status,Security Legal Status,Problem Use Case,Decision Process,Customer Timeline
+Acme Global Expansion,180000,Negotiation,Commit,2026-10-06,2026-08-28,Confirm procurement timeline,,Yes,No,2,Yes,Not Started,Not Started,Reduce manual forecasting and improve lane-level planning,Partial,Quarter-end target
+Northstar Logistics,95000,Proposal,Best Case,2026-10-25,2026-09-15,Technical validation with data team,2026-09-22,Yes,Yes,5,Yes,In Progress,In Progress,Automate pricing intelligence across procurement teams,Known,Contract needed before annual planning
+Orion Retail,240000,Discovery,Pipeline,2026-12-15,2026-09-17,Discovery with finance and operations,2026-09-24,No,No,2,No,Unknown,Unknown,Improve forecasting accuracy,Unknown,
+Summit Manufacturing,310000,Negotiation,Commit,2026-09-30,2026-09-16,Finalize redlines,2026-09-19,Yes,Yes,6,Yes,Complete,Complete,Standardize global procurement benchmarking,Known,Must sign before FY planning lock
+BluePeak Foods,125000,Evaluation,Best Case,2026-11-10,2026-08-03,,,No,No,1,Unknown,Unknown,Unknown,Benchmark contract rates,Unknown,
+Vertex Energy,150000,Proposal,Commit,2026-10-12,2026-09-14,Executive review,2026-09-23,Yes,Yes,4,No,In Progress,Complete,Improve market visibility and negotiation leverage,Known,Decision expected after executive review`;
+loadText(sample);
+};
+$("reset").onclick=()=>location.reload();
+$("analyzeBtn").onclick=runAnalysis;
+$("filterStatus").onchange=renderDeals;
+$("downloadBtn").onclick=downloadAnalysis;
+</script>
+</body>
+</html>
