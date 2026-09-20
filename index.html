@@ -516,16 +516,46 @@ function downloadAnalysis(){
   trackEvent("analysis_downloaded");
 }
 
-$("fileInput").addEventListener("change",e=>{
-  const file=e.target.files[0]; if(!file)return;
-  const reader=new FileReader(); reader.onload=()=>loadText(reader.result); reader.readAsText(file);
+function handleFile(file) {
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    loadText(String(reader.result || ""), "upload");
+  };
+
+  reader.onerror = () => {
+    alert("Cairn couldn't read that CSV. Please try again.");
+  };
+
+  reader.readAsText(file);
+}
+
+$("fileInput").addEventListener("change", e => {
+  handleFile(e.target.files?.[0]);
 });
-const dz=$("dropZone");
-["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add("drag")}));
-["dragleave","drop"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove("drag")}));
-dz.addEventListener("drop",e=>{
-  const file=e.dataTransfer.files[0]; if(!file)return;
-  const reader=new FileReader(); reader.onload=()=>loadText(reader.result); reader.readAsText(file);
+
+const dz = $("dropZone");
+
+["dragenter", "dragover"].forEach(ev =>
+  dz.addEventListener(ev, e => {
+    e.preventDefault();
+    e.stopPropagation();
+    dz.classList.add("drag");
+  })
+);
+
+["dragleave", "drop"].forEach(ev =>
+  dz.addEventListener(ev, e => {
+    e.preventDefault();
+    e.stopPropagation();
+    dz.classList.remove("drag");
+  })
+);
+
+dz.addEventListener("drop", e => {
+  handleFile(e.dataTransfer?.files?.[0]);
 });
 $("loadSample").onclick=()=>{
 const sample=`Opportunity Name,Amount,Stage,Forecast Category,Close Date,Last Activity Date,Next Step,Next Meeting Date,Champion,Economic Buyer,Stakeholder Count,Budget Confirmed,Procurement Status,Security Legal Status,Problem Use Case,Decision Process,Customer Timeline
