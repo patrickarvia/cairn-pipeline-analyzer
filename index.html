@@ -4,6 +4,11 @@
   <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-87LK3SW9QM"></script>
 <script>
+  function trackEvent(name, params = {}) {
+  if (typeof gtag === "function") {
+    gtag("event", name, params);
+  }
+}
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
@@ -283,12 +288,21 @@ function renderMapping(){
   grid.querySelectorAll("select").forEach(sel=>sel.onchange=e=>mapping[e.target.dataset.key]=e.target.value);
 }
 
-function loadText(text){
+function loadText(text, source="upload"){
   const parsed=parseCSV(text); headers=parsed.headers; rawRows=parsed.rows;
-  if(!headers.length || !rawRows.length){alert("I couldn't find usable rows in that CSV.");return}
-  autoMap(); renderMapping();
+  if(!headers.length || !rawRows.length){
+    alert("I couldn't find usable rows in that CSV.");
+    return;
+  }
+
+  autoMap();
+  renderMapping();
   $("mappingSection").classList.remove("hidden");
   $("results").classList.add("hidden");
+
+  if(source === "upload"){
+    trackEvent("pipeline_file_uploaded");
+  }
 }
 
 function val(row,key){const col=mapping[key]; return col?String(row[col]??"").trim():""}
@@ -424,7 +438,8 @@ function analyzeRow(row){
 
 function runAnalysis(){
   analyzed=rawRows.map(analyzeRow);
-  renderResults();
+  renderResults(); 
+  trackEvent("pipeline_analysis_completed");
 }
 
 function renderResults(){
@@ -497,6 +512,8 @@ function downloadAnalysis(){
   const text=[fields,...rows].map(r=>r.map(quote).join(",")).join("\n");
   const blob=new Blob([text],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="cairn_pipeline_analysis.csv";a.click();URL.revokeObjectURL(a.href);
+
+  trackEvent("analysis_downloaded");
 }
 
 $("fileInput").addEventListener("change",e=>{
@@ -518,7 +535,7 @@ Orion Retail,240000,Discovery,Pipeline,2026-12-15,2026-09-17,Discovery with fina
 Summit Manufacturing,310000,Negotiation,Commit,2026-09-30,2026-09-16,Finalize redlines,2026-09-19,Yes,Yes,6,Yes,Complete,Complete,Standardize global procurement benchmarking,Known,Must sign before FY planning lock
 BluePeak Foods,125000,Evaluation,Best Case,2026-11-10,2026-08-03,,,No,No,1,Unknown,Unknown,Unknown,Benchmark contract rates,Unknown,
 Vertex Energy,150000,Proposal,Commit,2026-10-12,2026-09-14,Executive review,2026-09-23,Yes,Yes,4,No,In Progress,Complete,Improve market visibility and negotiation leverage,Known,Decision expected after executive review`;
-loadText(sample);
+loadText(sample, "sample");
 };
 $("reset").onclick=()=>location.reload();
 $("analyzeBtn").onclick=runAnalysis;
