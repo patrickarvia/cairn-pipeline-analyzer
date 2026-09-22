@@ -1,48 +1,17 @@
-# Cairn Pipeline Analyzer
+# Cairn Pipeline Analyzer V2
 
-A free sales pipeline analysis tool from Cairn GTM that reviews a CRM pipeline export for deal risk, missing stakeholders, stale opportunities, forecast gaps, and recommended next actions.
+Browser-based pipeline evidence analyzer by Cairn GTM.
 
-## What it analyzes
+## V2 changes
+- New Cairn visual system aligned with the Deal Calculator
+- Clear two-path entry: upload your pipeline or try the demo
+- Demo loads 12 fictional enterprise opportunities
+- Dedicated **Analyze sample pipeline** CTA
+- Demo results remain clearly labeled as sample data
+- Existing CSV mapping, analysis, filtering, and download behavior preserved
+- Browser-only privacy model preserved
 
-The analyzer can use fields such as:
+## Deploy
+Replace `index.html` in the existing GitHub Pages repository and commit.
 
-- Opportunity name
-- Deal amount
-- Stage
-- Forecast category
-- Close date
-- Last activity
-- Next step
-- Champion
-- Economic buyer
-- Stakeholder count
-- Budget confirmation
-- Procurement status
-- Security / legal status
-
-It then surfaces pipeline-level signals including:
-
-- At-risk opportunities
-- Unsupported commits
-- Stalled or stale deals
-- Missing stakeholders
-- Evidence gaps
-- Recommended next actions
-
-## Privacy
-
-Your pipeline data stays in your browser. The tool does not upload or store your CSV.
-
-## How to use it
-
-1. Export your sales pipeline as a CSV.
-2. Upload the file to the Cairn Pipeline Analyzer.
-3. Review the automatically matched fields.
-4. Adjust field mappings if needed.
-5. Analyze the pipeline and review the results.
-
-## About
-
-Built by Patrick Arvia / Cairn GTM.
-
-https://cairngtm.com
+The demo data is fictional and is intended only to demonstrate the type of output a user can expect from their own CRM export.
