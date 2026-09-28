@@ -55,25 +55,27 @@ select{width:100%;border:1px solid var(--border);border-radius:9px;padding:10px;
 .results-head .eyebrow{padding:0}.results-head h2{font-size:30px;margin:4px 0 0;letter-spacing:-.035em}
 .demo-results-label{display:none;border-radius:999px;padding:7px 10px;background:#f2e7cb;color:#72551e;font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.08em}
 .demo-results-label.visible{display:inline-block}
-.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .kpi{background:white;border:1px solid var(--border);border-radius:15px;padding:17px;box-shadow:var(--shadow)}
 .kpi .label{font-size:11px;text-transform:uppercase;letter-spacing:.11em;color:var(--muted);font-weight:850}
-.kpi .value{font-size:27px;font-weight:850;letter-spacing:-.04em;margin:6px 0 2px}.small{font-size:12px;color:var(--muted)}
+.kpi .value{font-size:34px;font-weight:850;letter-spacing:-.04em;margin:6px 0 2px}.small{font-size:12px;color:var(--muted)}
 .summary-grid{display:grid;grid-template-columns:1.35fr .65fr;gap:14px;margin-top:14px}
 .panel{background:white;border:1px solid var(--border);border-radius:17px;padding:20px;box-shadow:var(--shadow);margin-top:14px}
 .summary-grid .panel{margin-top:0}
 .section-title{font-size:12px;text-transform:uppercase;letter-spacing:.15em;color:var(--gold);font-weight:850;margin-bottom:12px}
 .callout{border:1px solid #ead7ae;padding:14px;background:#fffaf0;border-radius:11px;font-size:14px;line-height:1.5}
-.bar{display:flex;height:11px;border-radius:999px;overflow:hidden;background:#e9edf1;margin:18px 0 12px}.seg{height:100%}
-.seg.healthy{background:var(--green)}.seg.watch{background:#d99a24}.seg.risk{background:var(--red)}.seg.stalled{background:var(--gray)}.seg.commit{background:#73508f}
-.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:11px}.legend b{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
-.legend .healthy{background:var(--green)}.legend .watch{background:#d99a24}.legend .risk{background:var(--red)}.legend .stalled{background:var(--gray)}.legend .commit{background:#73508f}
+ .waterfall-row{display:grid;grid-template-columns:235px minmax(0,1fr) 165px;gap:16px;align-items:center;margin:16px 0;font-size:13px}
+.waterfall-track{height:28px;background:var(--panel);border-radius:5px;position:relative;overflow:hidden}
+.waterfall-fill{position:absolute;height:100%;background:var(--gold);border-radius:4px;min-width:2px}
+.waterfall-fill.headline{background:var(--navy)}.waterfall-fill.supported{background:var(--green)}
+.waterfall-value{text-align:right;font-weight:800}.waterfall-value .small{font-weight:400}
+@media(max-width:600px){.waterfall-row{grid-template-columns:minmax(0,1fr) auto;gap:8px}.waterfall-track{grid-row:2;grid-column:1 / -1}.deal-top{flex-wrap:wrap}.sample-top{flex-wrap:wrap}}
 .deal-controls{display:flex;justify-content:space-between;gap:16px;align-items:center}
 .deal-list{display:grid;gap:12px;margin-top:16px}
 .deal{border:1px solid var(--border);border-radius:14px;padding:18px;background:#fff}
 .deal-top{display:flex;justify-content:space-between;gap:14px;align-items:start}.deal-name{font-weight:850;font-size:17px}.meta{font-size:12px;color:var(--muted);margin-top:4px}
 .pill{border-radius:999px;padding:6px 9px;color:white;font-size:11px;font-weight:850;white-space:nowrap}
-.pill.Healthy{background:var(--green)}.pill.Watch{background:#d99916}.pill.At-Risk{background:var(--red)}.pill.Stalled{background:var(--gray)}.pill.Unsupported-Commit{background:#73508f}
+.pill.Evidence-Supported{background:var(--green)}.pill.Assumption-Dependent{background:var(--amber)}
 .diagnosis{margin:12px 0 10px;line-height:1.5;font-size:14px;color:#3e4c60}
 .deal-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}.deal h4{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:4px 0 6px}
 ul{margin:0;padding-left:18px}li{margin:4px 0;font-size:13px;line-height:1.45}.empty{color:var(--muted);font-size:13px}
@@ -119,7 +121,7 @@ ul{margin:0;padding-left:18px}li{margin:4px 0;font-size:13px;line-height:1.45}.e
       <div class="sample-top">
         <div>
           <h3>Sample pipeline loaded</h3>
-          <p><span id="sampleStats">12 fictional opportunities</span> · designed to show healthy, at-risk, stalled, and unsupported Commit scenarios.</p>
+          <p><span id="sampleStats">12 fictional opportunities</span> · designed to show stage-aware evidence support and assumption-dependent scenarios.</p>
         </div>
         <div class="sample-badge">Demo data</div>
       </div>
@@ -143,34 +145,21 @@ ul{margin:0;padding-left:18px}li{margin:4px 0;font-size:13px;line-height:1.45}.e
     <div class="results-head">
       <div>
         <div class="eyebrow">PIPELINE INTELLIGENCE</div>
-        <h2>Your pipeline readout</h2>
+        <h2>Pipeline evidence audit</h2>
       </div>
       <div id="demoResultsLabel" class="demo-results-label">Sample data</div>
     </div>
     <div class="kpis">
-      <div class="kpi"><div class="label">Total Pipeline</div><div id="kTotal" class="value">$0</div><div id="kDeals" class="small">0 deals</div></div>
-      <div class="kpi"><div class="label">Supported Pipeline</div><div id="kSupported" class="value">$0</div><div class="small">Healthy + Watch</div></div>
-      <div class="kpi"><div class="label">At Risk</div><div id="kRisk" class="value">$0</div><div id="kRiskDeals" class="small">0 deals</div></div>
-      <div class="kpi"><div class="label">Unsupported Commit</div><div id="kCommit" class="value">$0</div><div id="kCommitDeals" class="small">0 deals</div></div>
-      <div class="kpi"><div class="label">Stalled</div><div id="kStalled" class="value">$0</div><div id="kStalledDeals" class="small">0 deals</div></div>
+      <div class="kpi"><div class="label">Headline Pipeline</div><div id="kTotal" class="value">$0</div><div id="kDeals" class="small"></div></div>
+      <div class="kpi"><div class="label">Evidence-Supported</div><div id="kSupported" class="value">$0</div><div id="kSupportedDeals" class="small"></div></div>
+      <div class="kpi"><div class="label">Assumption Gap</div><div id="kGap" class="value">$0</div><div id="kGapDeals" class="small"></div></div>
     </div>
-
-    <div class="summary-grid">
-      <div class="panel">
-        <div class="section-title">Pipeline quality</div>
-        <div id="qualityText" class="callout"></div>
-        <div id="qualityBar" class="bar"></div>
-        <div class="legend">
-          <span><b class="healthy"></b>Healthy</span><span><b class="watch"></b>Watch</span>
-          <span><b class="risk"></b>At Risk</span><span><b class="stalled"></b>Stalled</span>
-          <span><b class="commit"></b>Unsupported Commit</span>
-        </div>
-      </div>
-      <div class="panel">
-        <div class="section-title">Most common gaps</div>
-        <div id="commonGaps"></div>
-      </div>
-    </div>
+    <section class="panel" aria-labelledby="waterfallTitle">
+      <h3 id="waterfallTitle" class="section-title">Evidence Waterfall</h3>
+      <div id="qualityText" class="callout"></div>
+      <div id="waterfall"></div>
+      <p class="hint">Each assumption-dependent opportunity is deducted once using its highest-priority blocking evidence gap, so revenue is never double-counted.</p>
+    </section>
 
     <div class="panel">
       <div class="deal-controls">
@@ -180,8 +169,8 @@ ul{margin:0;padding-left:18px}li{margin:4px 0;font-size:13px;line-height:1.45}.e
         </div>
         <div class="row" style="margin:0">
           <select id="filterStatus" style="width:auto">
-            <option value="All">All diagnoses</option>
-            <option>Healthy</option><option>Watch</option><option>At Risk</option><option>Stalled</option><option>Unsupported Commit</option>
+            <option value="All">All evidence states</option>
+            <option>Evidence Supported</option><option>Assumption Dependent</option>
           </select>
           <button id="downloadBtn" class="secondary">Download analysis CSV</button>
         </div>
@@ -281,7 +270,7 @@ function loadText(text){
 function val(row,key){const col=mapping[key]; return col?String(row[col]??"").trim():""}
 function yes(v){return /^(yes|y|true|1|confirmed|identified|complete|completed)$/i.test(v.trim())}
 function no(v){return /^(no|n|false|0|not identified|none)$/i.test(v.trim())}
-function unknown(v){return !v || /unknown|n\/a|na|not sure|tbd/i.test(v)}
+function unknown(v){return !v.trim() || /^(unknown|n\/a|na|not sure|tbd|none|no|not documented|not known)$/i.test(v.trim())}
 function money(v){const n=parseFloat(String(v||"").replace(/[$,\s]/g,""));return Number.isFinite(n)?n:0}
 function date(v){ if(!v)return null; const d=new Date(v); return isNaN(d)?null:d}
 function daysBetween(a,b){return Math.round((b-a)/(1000*60*60*24))}
@@ -290,127 +279,85 @@ function isAdvanced(stage){
   const s=normalize(stage);
   return /(proposal|evaluation|pilot|poc|negoti|contract|legal|procurement|commit|closing|final)/.test(s)
 }
-function isCommit(fc){return /commit/i.test(fc)}
+function isCommit(fc){return /^(commit|committed)$/i.test(fc.trim())}
 function statusClass(s){return s.replace(/\s+/g,"-")}
 
-function analyzeRow(row){
-  const now=new Date();
-  const d={
-    name:val(row,"name")||"Unnamed opportunity",
-    amount:money(val(row,"amount")),
-    stage:val(row,"stage")||"Unknown stage",
-    forecast:val(row,"forecast")||"",
-    closeDate:val(row,"closeDate"),
-    owner:val(row,"owner"),
-    evidence:[], gaps:[], recommendations:[], penalties:0
+const blockerOrder=["Stale buyer momentum","Buyer momentum gap","Core business case missing","Buyer authority gap","No customer-owned next step","Stakeholder coverage gap","Buying process unknown","Unsupported close date","Commercial process gap","Other evidence gap"];
+function analyzeRow(row, referenceDate=new Date()){
+  // Calendar dates are compared in UTC to avoid time-of-day and DST boundary shifts.
+  const today=new Date(Date.UTC(referenceDate.getFullYear(),referenceDate.getMonth(),referenceDate.getDate()));
+  const d={name:val(row,"name")||"Unnamed opportunity",amount:money(val(row,"amount")),
+    stage:val(row,"stage")||"Unknown stage",forecast:val(row,"forecast"),closeDate:val(row,"closeDate"),owner:val(row,"owner"),
+    claims:[],blockers:[],evidence:[],gaps:[],recommendations:[]};
+  const last=date(val(row,"lastActivity")), close=date(d.closeDate), meeting=date(val(row,"nextMeeting"));
+  const age=last?daysBetween(last,today):null, until=close?daysBetween(today,close):null;
+  const documented=key=>!unknown(val(row,key));
+  const binary=key=>yes(val(row,key))?"Supported":(no(val(row,key))||/^(not confirmed|unconfirmed)$/i.test(val(row,key)))?"Contradicted":"Unknown";
+  const process=key=>{
+    const v=normalize(val(row,key));
+    if(/^(not started|not complete|not completed|blocked|no)$/.test(v))return "Contradicted";
+    return /^(complete|completed|in progress|started|review|in review|not required)$/.test(v)?"Supported":"Unknown";
   };
-
-  const last=date(val(row,"lastActivity"));
-  const close=date(val(row,"closeDate"));
-  const nextMeeting=date(val(row,"nextMeeting"));
-  const nextStep=val(row,"nextStep");
-  const champion=val(row,"champion");
-  const eb=val(row,"economicBuyer");
-  const stakeholders=parseInt(val(row,"stakeholders"),10);
-  const budget=val(row,"budget");
-  const procurement=val(row,"procurement");
-  const sec=val(row,"securityLegal");
-  const problem=val(row,"problem");
-  const decision=val(row,"decision");
-  const timeline=val(row,"timeline");
-
-  const staleDays=last?daysBetween(last,now):null;
-  const daysToClose=close?daysBetween(now,close):null;
-  const advanced=isAdvanced(d.stage);
-
-  if(last && staleDays<=14)d.evidence.push(`Recent customer activity (${staleDays} days ago)`);
-  else if(last && staleDays>30){d.gaps.push(`No meaningful activity for ${staleDays} days`);d.penalties+=4}
-  else if(last && staleDays>14){d.gaps.push(`Last activity was ${staleDays} days ago`);d.penalties+=2}
-  else {d.gaps.push("No last-activity evidence");d.penalties+=2}
-
-  if(nextStep)d.evidence.push("Concrete next step is documented");
-  else {d.gaps.push("No concrete next step");d.penalties+=2}
-
-  if(nextMeeting && daysBetween(now,nextMeeting)>=-1)d.evidence.push("Future customer meeting is scheduled");
-  else if(advanced){d.gaps.push("No future customer meeting is scheduled");d.penalties+=2}
-
-  if(yes(champion))d.evidence.push("Champion identified");
-  else if(advanced){d.gaps.push("No confirmed champion");d.penalties+=2}
-
-  if(yes(eb))d.evidence.push("Economic buyer / executive sponsor identified");
-  else if(advanced){d.gaps.push("No confirmed economic buyer / executive sponsor");d.penalties+=3}
-
-  if(Number.isFinite(stakeholders)){
-    if(stakeholders>=4)d.evidence.push(`${stakeholders} stakeholders mapped`);
-    else if(stakeholders<=1){d.gaps.push("Deal appears single-threaded");d.penalties+=3}
-    else if(advanced){d.gaps.push(`Only ${stakeholders} stakeholders mapped`);d.penalties+=1}
-  } else if(advanced){d.gaps.push("Stakeholder coverage is unknown");d.penalties+=1}
-
-  if(yes(budget))d.evidence.push("Budget is confirmed");
-  else if(advanced && (no(budget)||unknown(budget))){d.gaps.push("Budget is not confirmed");d.penalties+=2}
-
-  const p=normalize(procurement);
-  if(/complete/.test(p))d.evidence.push("Procurement complete");
-  else if(/progress|started|review/.test(p))d.evidence.push("Procurement is in progress");
-  else if(advanced && (unknown(procurement)||/not started/.test(p))){d.gaps.push("Procurement has not meaningfully started");d.penalties+=2}
-
-  const sl=normalize(sec);
-  if(/complete/.test(sl))d.evidence.push("Security/legal complete");
-  else if(/progress|started|review/.test(sl))d.evidence.push("Security/legal is in progress");
-  else if(advanced && (unknown(sec)||/not started/.test(sl))){d.gaps.push("Security/legal status is unresolved");d.penalties+=2}
-
-  if(problem)d.evidence.push("Business problem / use case is documented");
-  else {d.gaps.push("Business problem / use case is not documented");d.penalties+=2}
-
-  if(decision && !/unknown|partial/i.test(decision))d.evidence.push("Decision process is known");
-  else if(advanced){d.gaps.push("Decision process is not fully known");d.penalties+=2}
-
-  if(timeline)d.evidence.push("Customer-driven timeline / compelling event is documented");
-  else if(close && daysToClose!==null && daysToClose<=45){d.gaps.push("Close date lacks a documented customer-driven reason");d.penalties+=3}
-
-  const keyCommitGaps = [
-    !yes(eb),
-    !yes(champion),
-    !(yes(budget)),
-    !decision || /unknown|partial/i.test(decision),
-    !timeline,
-    !nextStep,
-    (staleDays===null || staleDays>21)
-  ].filter(Boolean).length;
-
-  let status;
-  if(isCommit(d.forecast) && keyCommitGaps>=3) status="Unsupported Commit";
-  else if(staleDays!==null && staleDays>30) status="Stalled";
-  else if(d.penalties>=10) status="At Risk";
-  else if(d.penalties>=4) status="Watch";
-  else status="Healthy";
-
-  const rec=[];
-  if(!yes(eb) && advanced)rec.push("Get access to the economic buyer or executive sponsor and validate decision authority.");
-  if(!yes(champion) && advanced)rec.push("Identify a champion who will actively help navigate the buying process.");
-  if(Number.isFinite(stakeholders) && stakeholders<=2 && advanced)rec.push("Multithread the deal beyond the current contact set.");
-  if(!nextStep)rec.push("Create a dated, customer-owned next step before advancing the opportunity.");
-  if(staleDays===null || staleDays>21)rec.push("Revalidate customer urgency before carrying the current close date.");
-  if(!timeline && close && daysToClose!==null && daysToClose<=45)rec.push("Tie the close date to a customer-driven deadline or compelling event.");
-  if(!yes(budget) && advanced)rec.push("Confirm budget source, amount, and approval path.");
-  if((unknown(procurement)||/not started/i.test(procurement)) && advanced)rec.push("Map procurement steps and expected duration now rather than after verbal agreement.");
-  if((unknown(sec)||/not started/i.test(sec)) && advanced)rec.push("Confirm whether security/legal review is required and start it early.");
-  if(!decision || /unknown|partial/i.test(decision))rec.push("Document the decision process, criteria, and remaining approvals.");
-  if(!problem)rec.push("Clarify the measurable business problem before treating activity as deal progress.");
-  d.recommendations=rec.slice(0,4);
-
-  if(status==="Healthy") d.diagnosis="Buying evidence broadly supports the current stage and close plan. The main job is to preserve momentum and avoid introducing unnecessary execution risk.";
-  if(status==="Watch") d.diagnosis="The opportunity is progressing, but there are meaningful evidence gaps that could make the current stage or timing optimistic.";
-  if(status==="At Risk") d.diagnosis="The CRM position appears materially stronger than the available buying evidence. Several core elements of the decision process are unresolved.";
-  if(status==="Stalled") d.diagnosis="The opportunity shows limited recent customer-driven progression. The immediate question is whether urgency still exists before investing more forecast confidence.";
-  if(status==="Unsupported Commit") d.diagnosis="This deal is forecast as Commit, but the available evidence does not currently support that level of confidence. Revalidate the buyer, process, timeline, and next action.";
-
-  d.status=status; d.staleDays=staleDays; d.daysToClose=daysToClose;
+  const add=(id,label,state,action)=>d.claims.push({id,label,state,action});
+  add("momentum","Buyer momentum",age===null||age<0?"Unknown":age<=14?"Supported":age<=30?"Inferred":"Stale","Revalidate buyer engagement and record recent customer activity.");
+  const step=documented("nextStep"), future=meeting && meeting>=today;
+  add("nextStep","Customer-owned next step",step&&future?"Supported":step||future?"Inferred":"Unknown","Document a customer-owned next step and schedule the customer meeting.");
+  add("champion","Champion",binary("champion"),"Confirm an active champion who can navigate the buying process.");
+  add("economicBuyer","Economic buyer / executive sponsor",binary("economicBuyer"),"Validate access to the economic buyer and decision authority.");
+  const count=val(row,"stakeholders"), n=Number(count);
+  add("stakeholders","Stakeholder coverage",!count||!Number.isInteger(n)||n<0?"Unknown":n>=4?"Supported":n>=2?"Inferred":"Contradicted","Map the stakeholder group and engage additional buying participants.");
+  add("budget","Budget",binary("budget"),"Confirm budget source, amount, and approval path.");
+  add("procurement","Procurement",process("procurement"),"Confirm procurement requirements and review progress or document that it is not required.");
+  add("securityLegal","Security / legal",process("securityLegal"),"Confirm security/legal requirements and review progress or document that it is not required.");
+  add("problem","Business problem / use case",documented("problem")?"Supported":"Unknown","Document the measurable business problem and use case.");
+  add("decision","Decision process",!documented("decision")?"Unknown":/partial/i.test(val(row,"decision"))?"Inferred":"Supported","Document the decision process, criteria, and remaining approvals.");
+  add("timeline","Close-date basis / customer timeline",!close?"Unknown":documented("timeline")?"Supported":until>45?"Inferred":"Contradicted","Tie the close date to a documented customer deadline or compelling event.");
+  const states=Object.fromEntries(d.claims.map(c=>[c.id,c.state]));
+  const commit=isCommit(d.forecast)||isCommit(d.stage), advanced=commit||isAdvanced(d.stage);
+  const late=commit||/(negoti|contract|legal|procurement|closing|final)/i.test(d.stage);
+  const block=(category,id,allowed)=>{if(!allowed.includes(states[id]))d.blockers.push({category,claimId:id,state:states[id]})};
+  block(states.momentum==="Stale"?"Stale buyer momentum":"Buyer momentum gap","momentum",commit?["Supported"]:["Supported","Inferred"]);
+  block("Core business case missing","problem",["Supported"]);
+  if(advanced){
+    block("Buyer authority gap","economicBuyer",["Supported"]);
+    block("Buyer authority gap","champion",["Supported"]);
+    block("Stakeholder coverage gap","stakeholders",commit?["Supported"]:["Supported","Inferred"]);
+    block("Buying process unknown","decision",commit?["Supported"]:["Supported","Inferred"]);
+    block("Commercial process gap","budget",["Supported"]);
+  }
+  block("No customer-owned next step","nextStep",commit?["Supported"]:["Supported","Inferred"]);
+  block("Unsupported close date","timeline",commit?["Supported"]:["Supported","Inferred"]);
+  if(late){
+    block("Commercial process gap","procurement",["Supported"]);
+    block("Commercial process gap","securityLegal",["Supported"]);
+  }
+  if(d.stage==="Unknown stage")d.blockers.push({category:"Other evidence gap",claimId:"stage",state:"Unknown"});
+  d.blockers.sort((a,b)=>blockerOrder.indexOf(a.category)-blockerOrder.indexOf(b.category));
+  d.primaryBlocker=d.blockers[0]?.category||"";
+  d.status=d.blockers.length?"Assumption Dependent":"Evidence Supported";
+  d.claims.forEach(c=>(c.state==="Supported"?d.evidence:d.gaps).push(`${c.label}: ${c.state}`));
+  const blockingIds=new Set(d.blockers.map(b=>b.claimId));
+  d.recommendations=d.claims.filter(c=>blockingIds.has(c.id)).map(c=>c.action);
+  if(blockingIds.has("stage"))d.recommendations.push("Map the CRM stage so its evidence requirements can be evaluated.");
+  d.diagnosis=d.blockers.length?`This opportunity remains in Headline Pipeline but is excluded from Evidence-Supported Pipeline because of ${d.primaryBlocker.toLowerCase()}.`:
+    "The current CRM position is defensible for this stage based on the evidence available in the mapped fields.";
   return d;
 }
 
+function summarize(deals){
+  const supportedDeals=deals.filter(d=>d.status==="Evidence Supported");
+  const dependentDeals=deals.filter(d=>d.status==="Assumption Dependent");
+  const sum=ds=>ds.reduce((n,d)=>n+d.amount,0);
+  const total=sum(deals), supported=sum(supportedDeals);
+  const deductions=blockerOrder.map(category=>{
+    const members=dependentDeals.filter(d=>d.primaryBlocker===category);
+    return {category,amount:sum(members),count:members.length};
+  }).filter(g=>g.count);
+  return {total,supported,gap:total-supported,supportedCount:supportedDeals.length,dependentCount:dependentDeals.length,deductions};
+}
+
 function runAnalysis(){
-  analyzed=rawRows.map(analyzeRow);
+  analyzed=rawRows.map(row=>analyzeRow(row));
   renderResults();
   $("demoResultsLabel").classList.toggle("visible", demoMode);
   setTimeout(()=>$("results").scrollIntoView({behavior:"smooth",block:"start"}),80);
@@ -418,34 +365,26 @@ function runAnalysis(){
 
 function renderResults(){
   $("results").classList.remove("hidden");
-  const total=analyzed.reduce((a,d)=>a+d.amount,0);
-  const supported=analyzed.filter(d=>["Healthy","Watch"].includes(d.status)).reduce((a,d)=>a+d.amount,0);
-  const risk=analyzed.filter(d=>d.status==="At Risk").reduce((a,d)=>a+d.amount,0);
-  const commit=analyzed.filter(d=>d.status==="Unsupported Commit").reduce((a,d)=>a+d.amount,0);
-  const stalled=analyzed.filter(d=>d.status==="Stalled").reduce((a,d)=>a+d.amount,0);
-
-  $("kTotal").textContent=fmtMoney(total); $("kDeals").textContent=`${analyzed.length} deals`;
-  $("kSupported").textContent=fmtMoney(supported);
-  $("kRisk").textContent=fmtMoney(risk); $("kRiskDeals").textContent=`${analyzed.filter(d=>d.status==="At Risk").length} deals`;
-  $("kCommit").textContent=fmtMoney(commit); $("kCommitDeals").textContent=`${analyzed.filter(d=>d.status==="Unsupported Commit").length} deals`;
-  $("kStalled").textContent=fmtMoney(stalled); $("kStalledDeals").textContent=`${analyzed.filter(d=>d.status==="Stalled").length} deals`;
-
-  const pct=total?Math.round((supported/total)*100):0;
-  $("qualityText").innerHTML=`<strong>${pct}% of pipeline value has enough evidence to classify as Healthy or Watch.</strong> The remaining ${100-pct}% is either at risk, stalled, or carried as Commit without sufficient support.`;
-  const order=[["Healthy","healthy"],["Watch","watch"],["At Risk","risk"],["Stalled","stalled"],["Unsupported Commit","commit"]];
-  $("qualityBar").innerHTML=order.map(([s,c])=>{
-    const v=analyzed.filter(d=>d.status===s).reduce((a,d)=>a+d.amount,0);
-    const w=total?(v/total*100):0;
-    return `<div class="seg ${c}" style="width:${w}%"></div>`;
-  }).join("");
-
-  const gapCounts={};
-  analyzed.forEach(d=>d.gaps.forEach(g=>{
-    const key=g.replace(/\d+ days/g,"recent-activity gap").replace(/Only \d+ stakeholders mapped/,"Limited stakeholder coverage");
-    gapCounts[key]=(gapCounts[key]||0)+1;
-  }));
-  const top=Object.entries(gapCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  $("commonGaps").innerHTML=top.length?`<ul>${top.map(([g,n])=>`<li><strong>${n}</strong> deal${n>1?"s":""}: ${esc(g)}</li>`).join("")}</ul>`:`<div class="empty">No recurring gaps found.</div>`;
+  const audit=summarize(analyzed);
+  $("kTotal").textContent=fmtMoney(audit.total); $("kDeals").textContent=`${analyzed.length} deals in CRM`;
+  $("kSupported").textContent=fmtMoney(audit.supported); $("kSupportedDeals").textContent=`${audit.supportedCount} defensible deals`;
+  $("kGap").textContent=fmtMoney(audit.gap); $("kGapDeals").textContent=`${audit.dependentCount} assumption-dependent deals`;
+  $("qualityText").textContent=`${fmtMoney(audit.supported)} of ${fmtMoney(audit.total)} can currently be defended by the evidence available in the CRM export. Cairn evaluates evidence relative to stage, with a higher bar for Commit deals.`;
+  let remaining=audit.total;
+  const rows=[{label:"Headline Pipeline",amount:audit.total,count:analyzed.length,start:0,end:audit.total,kind:"headline"}];
+  audit.deductions.forEach(g=>{
+    const before=remaining; remaining-=g.amount;
+    rows.push({label:g.category,amount:g.amount,count:g.count,start:remaining,end:before,kind:"deduction"});
+  });
+  rows.push({label:"Evidence-Supported",amount:audit.supported,count:audit.supportedCount,start:0,end:audit.supported,kind:"supported"});
+  // Include signed values in the scale so unusual negative CRM amounts remain visible.
+  const low=Math.min(0,...rows.flatMap(r=>[r.start,r.end])), high=Math.max(0,...rows.flatMap(r=>[r.start,r.end]));
+  const range=high-low||1;
+  $("waterfall").innerHTML=rows.map(r=>`<div class="waterfall-row">
+    <div>${r.kind==="deduction"?"↓ ":r.kind==="supported"?"= ":""}${esc(r.label)}</div>
+    <div class="waterfall-track" aria-hidden="true"><div class="waterfall-fill ${r.kind}" style="left:${(Math.min(r.start,r.end)-low)/range*100}%;width:${Math.abs(r.end-r.start)/range*100}%;${r.amount===0?"min-width:0;":""}"></div></div>
+    <div class="waterfall-value">${r.kind==="deduction"?"− ":""}${fmtMoney(r.amount)}<div class="small">${r.count} deal${r.count===1?"":"s"}</div></div>
+  </div>`).join("");
 
   renderDeals();
 }
@@ -453,7 +392,7 @@ function renderResults(){
 function renderDeals(){
   const filter=$("filterStatus").value;
   const ds=(filter==="All"?analyzed:analyzed.filter(d=>d.status===filter)).slice().sort((a,b)=>{
-    const rank={"Unsupported Commit":0,"Stalled":1,"At Risk":2,"Watch":3,"Healthy":4};
+    const rank={"Assumption Dependent":0,"Evidence Supported":1};
     return rank[a.status]-rank[b.status] || b.amount-a.amount;
   });
   $("dealCount").textContent=`Showing ${ds.length} of ${analyzed.length} opportunities`;
@@ -477,9 +416,9 @@ function renderDeals(){
 }
 
 function downloadAnalysis(){
-  const fields=["Opportunity","Amount","Stage","Forecast","Close Date","Diagnosis","Evidence","Gaps","Recommendations"];
+  const fields=["Opportunity","Amount","Stage","Forecast","Close Date","Evidence Status","Primary Blocking Gap","Supported Evidence","Evidence Gaps","Recommendations"];
   const rows=analyzed.map(d=>[
-    d.name,d.amount,d.stage,d.forecast,d.closeDate,d.status,
+    d.name,d.amount,d.stage,d.forecast,d.closeDate,d.status,d.primaryBlocker,
     d.evidence.join(" | "),d.gaps.join(" | "),d.recommendations.join(" | ")
   ]);
   const quote=v=>`"${String(v??"").replace(/"/g,'""')}"`;
