@@ -282,10 +282,32 @@ function isAdvanced(stage){
 function isCommit(fc){return /^(commit|committed)$/i.test(fc.trim())}
 function statusClass(s){return s.replace(/\s+/g,"-")}
 
-const blockerOrder=["Stale buyer momentum","Buyer momentum gap","Core business case missing","Buyer authority gap","No customer-owned next step","Stakeholder coverage gap","Buying process unknown","Unsupported close date","Commercial process gap","Other evidence gap"];
+const blockerOrder=["Stale buyer momentum","Aging buyer momentum","Unknown buyer momentum","Core business case missing","Buyer authority gap","No customer-owned next step","Unverified customer-owned next step","Stakeholder coverage gap","Buying process unknown","Unsupported close date","Commercial process gap","Other evidence gap"];
+// Normalize the local calendar day to UTC for date-only comparisons and arithmetic.
+function calendarDay(referenceDate){
+  return new Date(Date.UTC(referenceDate.getFullYear(),referenceDate.getMonth(),referenceDate.getDate()));
+}
+function demoDate(offsetDays, referenceDate=new Date()){
+  const day=calendarDay(referenceDate);
+  day.setUTCDate(day.getUTCDate()+offsetDays);
+  return day.toISOString().slice(0,10);
+}
+const blockerReasons={
+  "Stale buyer momentum":"buyer activity is stale",
+  "Aging buyer momentum":"buyer activity is aging and does not meet the evidence bar for Commit",
+  "Unknown buyer momentum":"recent buyer activity is not documented",
+  "Core business case missing":"the business problem or use case is not documented",
+  "Buyer authority gap":"buyer authority is not yet confirmed",
+  "No customer-owned next step":"no customer-owned next step is documented or scheduled",
+  "Unverified customer-owned next step":"the customer-owned next step is not yet fully verified",
+  "Stakeholder coverage gap":"stakeholder coverage does not meet the evidence bar for this stage",
+  "Buying process unknown":"the buying process is not yet sufficiently documented",
+  "Unsupported close date":"the close date lacks the customer timeline evidence required for this stage",
+  "Commercial process gap":"budget or commercial-process evidence does not meet the requirements for this stage",
+  "Other evidence gap":"the CRM stage is unknown"
+};
 function analyzeRow(row, referenceDate=new Date()){
-  // Calendar dates are compared in UTC to avoid time-of-day and DST boundary shifts.
-  const today=new Date(Date.UTC(referenceDate.getFullYear(),referenceDate.getMonth(),referenceDate.getDate()));
+  const today=calendarDay(referenceDate);
   const d={name:val(row,"name")||"Unnamed opportunity",amount:money(val(row,"amount")),
     stage:val(row,"stage")||"Unknown stage",forecast:val(row,"forecast"),closeDate:val(row,"closeDate"),owner:val(row,"owner"),
     claims:[],blockers:[],evidence:[],gaps:[],recommendations:[]};
@@ -316,7 +338,7 @@ function analyzeRow(row, referenceDate=new Date()){
   const commit=isCommit(d.forecast)||isCommit(d.stage), advanced=commit||isAdvanced(d.stage);
   const late=commit||/(negoti|contract|legal|procurement|closing|final)/i.test(d.stage);
   const block=(category,id,allowed)=>{if(!allowed.includes(states[id]))d.blockers.push({category,claimId:id,state:states[id]})};
-  block(states.momentum==="Stale"?"Stale buyer momentum":"Buyer momentum gap","momentum",commit?["Supported"]:["Supported","Inferred"]);
+  block(states.momentum==="Stale"?"Stale buyer momentum":states.momentum==="Inferred"?"Aging buyer momentum":"Unknown buyer momentum","momentum",commit?["Supported"]:["Supported","Inferred"]);
   block("Core business case missing","problem",["Supported"]);
   if(advanced){
     block("Buyer authority gap","economicBuyer",["Supported"]);
@@ -325,7 +347,7 @@ function analyzeRow(row, referenceDate=new Date()){
     block("Buying process unknown","decision",commit?["Supported"]:["Supported","Inferred"]);
     block("Commercial process gap","budget",["Supported"]);
   }
-  block("No customer-owned next step","nextStep",commit?["Supported"]:["Supported","Inferred"]);
+  block(states.nextStep==="Inferred"?"Unverified customer-owned next step":"No customer-owned next step","nextStep",commit?["Supported"]:["Supported","Inferred"]);
   block("Unsupported close date","timeline",commit?["Supported"]:["Supported","Inferred"]);
   if(late){
     block("Commercial process gap","procurement",["Supported"]);
@@ -339,7 +361,7 @@ function analyzeRow(row, referenceDate=new Date()){
   const blockingIds=new Set(d.blockers.map(b=>b.claimId));
   d.recommendations=d.claims.filter(c=>blockingIds.has(c.id)).map(c=>c.action);
   if(blockingIds.has("stage"))d.recommendations.push("Map the CRM stage so its evidence requirements can be evaluated.");
-  d.diagnosis=d.blockers.length?`This opportunity remains in Headline Pipeline but is excluded from Evidence-Supported Pipeline because of ${d.primaryBlocker.toLowerCase()}.`:
+  d.diagnosis=d.blockers.length?`This opportunity remains in Headline Pipeline but is excluded from Evidence-Supported Pipeline because ${blockerReasons[d.primaryBlocker]}.`:
     "The current CRM position is defensible for this stage based on the evidence available in the mapped fields.";
   return d;
 }
@@ -440,19 +462,20 @@ dz.addEventListener("drop",e=>{
 });
 $("loadSample").onclick=()=>{
   demoMode=true;
+  const loadedToday=new Date();
   const sample=`Opportunity Name,Amount,Stage,Forecast Category,Close Date,Last Activity Date,Next Step,Next Meeting Date,Champion,Economic Buyer,Stakeholder Count,Budget Confirmed,Procurement Status,Security Legal Status,Problem Use Case,Decision Process,Customer Timeline
-Summit Manufacturing,310000,Negotiation,Commit,2026-09-30,2026-09-16,Finalize redlines,2026-09-24,Yes,Yes,6,Yes,Complete,Complete,Standardize global procurement benchmarking,Known,Must sign before FY planning lock
-Northstar Logistics,185000,Proposal,Best Case,2026-10-25,2026-09-15,Technical validation with data team,2026-09-28,Yes,Yes,5,Yes,In Progress,In Progress,Automate pricing intelligence across procurement teams,Known,Contract needed before annual planning
-Acme Global Expansion,240000,Negotiation,Commit,2026-10-06,2026-08-28,Confirm procurement timeline,,Yes,No,2,Yes,Not Started,Not Started,Reduce manual forecasting and improve lane-level planning,Partial,Quarter-end target
-Vertex Energy,175000,Proposal,Commit,2026-10-12,2026-09-14,Executive review,2026-09-29,Yes,Yes,4,No,In Progress,Complete,Improve market visibility and negotiation leverage,Known,Decision expected after executive review
-Orion Retail,260000,Discovery,Pipeline,2026-12-15,2026-09-17,Discovery with finance and operations,2026-09-30,No,No,2,No,Unknown,Unknown,Improve forecasting accuracy,Unknown,
-BluePeak Foods,125000,Evaluation,Best Case,2026-11-10,2026-08-03,,,No,No,1,Unknown,Unknown,Unknown,Benchmark contract rates,Unknown,
-Atlas Freight,220000,Negotiation,Commit,2026-10-18,2026-09-18,Security review checkpoint,2026-09-27,Yes,Yes,5,Yes,Complete,In Progress,Consolidate fragmented carrier data,Known,Go-live before annual bid season
-Cedar Health,90000,Proposal,Pipeline,2026-11-20,2026-09-19,Validate budget owner,2026-10-01,Yes,No,3,No,Unknown,Not Required,Reduce manual reporting,Partial,
-Redwood Systems,145000,Evaluation,Best Case,2026-11-05,2026-08-20,Re-engage operations leader,,No,No,2,Unknown,Unknown,Unknown,Improve supplier visibility,Unknown,
-Harbor Industrial,200000,Proposal,Commit,2026-10-28,2026-09-12,Confirm legal redlines,2026-09-26,Yes,Yes,5,Yes,In Progress,In Progress,Standardize sourcing decisions,Known,Board review in October
-Meridian Commerce,110000,Discovery,Pipeline,2026-12-20,2026-09-20,Map stakeholder group,2026-10-02,No,No,2,No,Unknown,Unknown,Improve margin visibility,Partial,
-Pioneer Mobility,160000,Evaluation,Best Case,2026-11-15,2026-09-18,Procurement planning session,2026-10-03,Yes,Yes,4,Yes,In Progress,Not Started,Improve contract benchmarking,Known,Decision before 2027 planning`;
+Summit Manufacturing,310000,Negotiation,Commit,${demoDate(2,loadedToday)},${demoDate(-12,loadedToday)},Finalize redlines,${demoDate(-4,loadedToday)},Yes,Yes,6,Yes,Complete,Complete,Standardize global procurement benchmarking,Known,Must sign before FY planning lock
+Northstar Logistics,185000,Proposal,Best Case,${demoDate(27,loadedToday)},${demoDate(-13,loadedToday)},Technical validation with data team,${demoDate(0,loadedToday)},Yes,Yes,5,Yes,In Progress,In Progress,Automate pricing intelligence across procurement teams,Known,Contract needed before annual planning
+Acme Global Expansion,240000,Negotiation,Commit,${demoDate(8,loadedToday)},${demoDate(-31,loadedToday)},Confirm procurement timeline,,Yes,No,2,Yes,Not Started,Not Started,Reduce manual forecasting and improve lane-level planning,Partial,Quarter-end target
+Vertex Energy,175000,Proposal,Commit,${demoDate(14,loadedToday)},${demoDate(-14,loadedToday)},Executive review,${demoDate(1,loadedToday)},Yes,Yes,4,No,In Progress,Complete,Improve market visibility and negotiation leverage,Known,Decision expected after executive review
+Orion Retail,260000,Discovery,Pipeline,${demoDate(78,loadedToday)},${demoDate(-11,loadedToday)},Discovery with finance and operations,${demoDate(2,loadedToday)},No,No,2,No,Unknown,Unknown,Improve forecasting accuracy,Unknown,
+BluePeak Foods,125000,Evaluation,Best Case,${demoDate(43,loadedToday)},${demoDate(-56,loadedToday)},,,No,No,1,Unknown,Unknown,Unknown,Benchmark contract rates,Unknown,
+Atlas Freight,220000,Negotiation,Commit,${demoDate(20,loadedToday)},${demoDate(-10,loadedToday)},Security review checkpoint,${demoDate(-1,loadedToday)},Yes,Yes,5,Yes,Complete,In Progress,Consolidate fragmented carrier data,Known,Go-live before annual bid season
+Cedar Health,90000,Proposal,Pipeline,${demoDate(53,loadedToday)},${demoDate(-9,loadedToday)},Validate budget owner,${demoDate(3,loadedToday)},Yes,No,3,No,Unknown,Not Required,Reduce manual reporting,Partial,
+Redwood Systems,145000,Evaluation,Best Case,${demoDate(38,loadedToday)},${demoDate(-39,loadedToday)},Re-engage operations leader,,No,No,2,Unknown,Unknown,Unknown,Improve supplier visibility,Unknown,
+Harbor Industrial,200000,Proposal,Commit,${demoDate(30,loadedToday)},${demoDate(-16,loadedToday)},Confirm legal redlines,${demoDate(-2,loadedToday)},Yes,Yes,5,Yes,In Progress,In Progress,Standardize sourcing decisions,Known,Board review in October
+Meridian Commerce,110000,Discovery,Pipeline,${demoDate(83,loadedToday)},${demoDate(-8,loadedToday)},Map stakeholder group,${demoDate(4,loadedToday)},No,No,2,No,Unknown,Unknown,Improve margin visibility,Partial,
+Pioneer Mobility,160000,Evaluation,Best Case,${demoDate(48,loadedToday)},${demoDate(-10,loadedToday)},Procurement planning session,${demoDate(5,loadedToday)},Yes,Yes,4,Yes,In Progress,Not Started,Improve contract benchmarking,Known,Decision before 2027 planning`;
   loadText(sample);
   $("mappingSection").classList.add("hidden");
   $("sampleReady").classList.add("visible");
