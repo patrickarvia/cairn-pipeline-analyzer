@@ -1,6 +1,7 @@
 # Cairn Pipeline Analyzer V2
 
 Browser-based pipeline evidence analyzer by Cairn GTM. Open `index.html` directly or serve it through GitHub Pages. No build, backend, database, charting dependency, or data upload is required; CRM data stays in the browser.
+[Open the live Cairn Pipeline Analyzer](https://cairn-pipeline-analyzer.vercel.app)
 
 ## Evidence Core
 
