@@ -323,7 +323,11 @@ function analyzeRow(row, referenceDate=new Date()){
   const add=(id,label,state,action)=>d.claims.push({id,label,state,action});
   add("momentum","Buyer momentum",age===null||age<0?"Unknown":age<=14?"Supported":age<=30?"Inferred":"Stale","Revalidate buyer engagement and record recent customer activity.");
   const step=documented("nextStep"), future=meeting && meeting>=today;
-  add("nextStep","Customer-owned next step",step&&future?"Supported":step||future?"Inferred":"Unknown","Document a customer-owned next step and schedule the customer meeting.");
+  const nextStepAction=step&&future?"":step?
+    "Verify the documented next step with the buyer and schedule a dated customer meeting.":future?
+    "Confirm the purpose and customer-owned next step for the scheduled meeting.":
+    "Document a customer-owned next step and schedule a dated customer meeting.";
+  add("nextStep","Customer-owned next step",step&&future?"Supported":step||future?"Inferred":"Unknown",nextStepAction);
   add("champion","Champion",binary("champion"),"Confirm an active champion who can navigate the buying process.");
   add("economicBuyer","Economic buyer / executive sponsor",binary("economicBuyer"),"Validate access to the economic buyer and decision authority.");
   const count=val(row,"stakeholders"), n=Number(count);

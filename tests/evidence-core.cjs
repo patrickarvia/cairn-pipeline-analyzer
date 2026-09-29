@@ -40,6 +40,7 @@ for(const [year,month,day] of [[2026,9,28],[2027,3,14],[2027,11,7],[2028,2,29],[
  const summit=deals.find(d=>d.name==='Summit Manufacturing');
  assert.equal(summit.claims.find(c=>c.id==='nextStep').state,'Inferred');
  assert.equal(summit.primaryBlocker,'Unverified customer-owned next step');
+ assert(summit.recommendations.includes('Verify the documented next step with the buyer and schedule a dated customer meeting.'));
  assert(summit.diagnosis.endsWith('because the customer-owned next step is not yet fully verified.'));
  assert.equal(deals.find(d=>d.name==='Harbor Industrial').primaryBlocker,'Aging buyer momentum');
  assert(!JSON.stringify(sample).includes('Buyer momentum gap'));
@@ -55,6 +56,21 @@ assert.equal(analyze({lastActivity:''}).primaryBlocker,'Unknown buyer momentum')
 assert.equal(analyze({nextStep:''}).primaryBlocker,'No customer-owned next step');
 const commit={stage:'Negotiation',forecast:'Commit',champion:'Yes',economicBuyer:'Yes',stakeholders:'4',budget:'Yes',procurement:'Not Required',securityLegal:'In Progress',decision:'Known',timeline:'Customer launch deadline',nextMeeting:'2026-09-29'};
 assert.equal(analyze(commit).status,'Evidence Supported');
+for(const [overrides,state,action] of [
+ [{},'Supported',''],
+ [{nextStep:'',nextMeeting:''},'Unknown','Document a customer-owned next step and schedule a dated customer meeting.'],
+ [{nextMeeting:''},'Inferred','Verify the documented next step with the buyer and schedule a dated customer meeting.'],
+ [{nextMeeting:'2026-09-27'},'Inferred','Verify the documented next step with the buyer and schedule a dated customer meeting.'],
+ [{nextStep:''},'Inferred','Confirm the purpose and customer-owned next step for the scheduled meeting.']
+]){
+ const deal=analyze({...commit,...overrides});
+ const claim=deal.claims.find(c=>c.id==='nextStep');
+ assert.equal(claim.state,state);
+ assert.equal(claim.action,action);
+ if(action)assert(deal.recommendations.includes(action));
+ else assert.equal(deal.recommendations.length,0);
+}
+
 for(const field of ['champion','economicBuyer','budget','decision','timeline','nextMeeting','procurement','securityLegal'])assert.equal(analyze({...commit,[field]:''}).status,'Assumption Dependent',field);
 for(const field of ['procurement','securityLegal'])assert.equal(analyze({...commit,[field]:'Not Started'}).claims.find(c=>c.id===field).state,'Contradicted');
 assert.equal(analyze({problem:'Unknown'}).primaryBlocker,'Core business case missing');
