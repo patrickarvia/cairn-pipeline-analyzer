@@ -71,7 +71,16 @@ select{width:100%;border:1px solid var(--border);border-radius:9px;padding:10px;
 .waterfall-value{text-align:right;font-weight:800}.waterfall-value .small{font-weight:400}
 @media(max-width:600px){.waterfall-row{grid-template-columns:minmax(0,1fr) auto;gap:8px}.waterfall-track{grid-row:2;grid-column:1 / -1}.deal-top{flex-wrap:wrap}.sample-top{flex-wrap:wrap}}
 .severity{display:inline-block;font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.06em;color:#8d3535}.severity.Material{color:#896016}
-.ledger-entry{border-top:1px solid var(--border);padding-top:16px;margin-top:16px}.ledger-entry h4{margin:0 0 10px;font-size:15px}.ledger-entry dl{margin:10px 0 0;font-size:13px;line-height:1.5}.ledger-entry dt{font-weight:800;color:var(--muted);margin-top:8px}.ledger-entry dd{margin:3px 0 0}.ledger-group{overflow-wrap:anywhere}.contradiction-callout{margin-top:14px}.deal-controls select{max-width:100%}
+.ledger-entry{border-top:1px solid var(--border);padding-top:12px;margin-top:12px}
+.ledger-entry-heading{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:5px 16px}
+.ledger-entry .ledger-entry-heading h4{margin:0;flex:1 1 220px}
+.ledger-entry-heading .severity{margin-left:auto}
+.ledger-entry dl{margin:6px 0 0;font-size:13px;line-height:1.5}.ledger-entry dt{font-weight:800;color:var(--muted);margin-top:6px}.ledger-entry dd{margin:2px 0 0}
+.ledger-conflicts li{margin:2px 0;line-height:1.4}
+.ledger-group{overflow-wrap:anywhere}.contradiction-callout{margin-top:14px}.deal-controls select{max-width:100%}
+.kpis.ledger-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:800px){.kpis.ledger-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.kpis.ledger-kpis{grid-template-columns:minmax(0,1fr)}}
 .deal-controls{display:flex;justify-content:space-between;gap:16px;align-items:center}
 .deal-list{display:grid;gap:12px;margin-top:16px}
 .deal{border:1px solid var(--border);border-radius:14px;padding:18px;background:#fff}
@@ -166,7 +175,7 @@ ul{margin:0;padding-left:18px}li{margin:4px 0;font-size:13px;line-height:1.45}.e
     <section class="panel" aria-labelledby="contradictionTitle">
       <h3 id="contradictionTitle" class="section-title">Contradiction Ledger</h3>
       <p id="contradictionSummary" class="hint"></p>
-      <div class="kpis">
+      <div class="kpis ledger-kpis">
         <div class="kpi"><div class="label">Contradiction-Exposed Pipeline</div><div id="kExposed" class="value">$0</div></div>
         <div class="kpi"><div class="label">Deals With Contradictions</div><div id="kContradictionDeals" class="value">0</div></div>
         <div class="kpi"><div class="label">Contradictions Found</div><div id="kContradictions" class="value">0</div></div>
@@ -395,8 +404,12 @@ function analyzeRow(row, referenceDate=new Date()){
 function deriveContradictions(d,{until,stakeholders,processValues}){
   const contradictions=[];
   const states=Object.fromEntries(d.claims.map(c=>[c.id,c.state]));
-  const add=(id,title,severity,crmClaim,evidenceConflict,explanation)=>contradictions.push({id,title,severity,crmClaim,evidenceConflict,explanation});
-  const conflicts=claims=>claims.map(c=>`${c.label} is ${c.state}`).join("; ")+".";
+  const add=(id,title,severity,crmClaim,conflict,explanation)=>{
+    const evidenceConflicts=Array.isArray(conflict)?conflict:[conflict];
+    const evidenceConflict=Array.isArray(conflict)?conflict.join("; ")+".":conflict;
+    contradictions.push({id,title,severity,crmClaim,evidenceConflict,evidenceConflicts,explanation});
+  };
+  const conflicts=claims=>claims.map(c=>`${c.label} is ${c.state}`);
   if(isCommit(d.forecast)||isCommit(d.stage)){
     const unsupported=d.claims.filter(c=>c.id!=="problem"&&c.state!=="Supported");
     if(unsupported.length)add("commit-confidence","Commit confidence exceeds buyer evidence","Critical",isCommit(d.forecast)?"Forecast is Commit.":"Stage is Commit.",conflicts(unsupported),"The CRM is carrying this opportunity as Commit, but the evidence required to defend Commit is incomplete or contradictory.");
@@ -407,7 +420,7 @@ function deriveContradictions(d,{until,stakeholders,processValues}){
   }
   if(/(negoti|contract|legal|procurement|closing|final)/i.test(d.stage)){
     const blocked=d.claims.filter(c=>["procurement","securityLegal"].includes(c.id)&&c.state==="Contradicted");
-    if(blocked.length)add("late-stage-process","Late-stage position conflicts with buying process","Material",`Opportunity is in ${d.stage}.`,blocked.map(c=>`${c.label} is ${processValues[c.id]}`).join("; ")+".","The late-stage position implies progress through a buying process that is explicitly incomplete or blocked.");
+    if(blocked.length)add("late-stage-process","Late-stage position conflicts with buying process","Material",`Opportunity is in ${d.stage}.`,blocked.map(c=>`${c.label} is ${processValues[c.id]}`),"The late-stage position implies progress through a buying process that is explicitly incomplete or blocked.");
   }
   if(isAdvanced(d.stage)&&states.momentum==="Stale")add("stale-progression","Advanced stage conflicts with stale buyer activity","Material",`Opportunity is in ${d.stage}.`,"Buyer activity is more than 30 days old.","An advanced stage implies active progression, but the recorded buyer activity is stale.");
   if(isAdvanced(d.stage)&&states.stakeholders==="Contradicted"&&stakeholders>=0&&stakeholders<=1)add("single-threading","Advanced deal remains single-threaded","Material",`Opportunity is in ${d.stage}.`,`Only ${stakeholders} stakeholder(s) are mapped.`,"The advanced position is not supported by a mapped group of buying participants.");
@@ -430,7 +443,7 @@ function renderContradictions(){
   $("kContradictions").textContent=audit.count;
   $("contradictionLedger").innerHTML=analyzed.filter(d=>d.contradictions.length).map(d=>`<article class="deal ledger-group">
     <div class="deal-top"><div><div class="deal-name">${esc(d.name)}</div><div class="meta">${fmtMoney(d.amount)} · ${esc(d.stage)} · ${esc(d.forecast||"No forecast category")}</div></div><span class="severity ${highestSeverity(d)}">${highestSeverity(d)}</span></div>
-    ${d.contradictions.map(c=>`<section class="ledger-entry"><h4>${esc(c.title)}</h4><span class="severity ${c.severity}">${c.severity}</span><dl><dt>CRM claim</dt><dd>${esc(c.crmClaim)}</dd><dt>Evidence conflict</dt><dd>${esc(c.evidenceConflict)}</dd><dt>Why this matters</dt><dd>${esc(c.explanation)}</dd></dl></section>`).join("")}
+    ${d.contradictions.map(c=>`<section class="ledger-entry"><div class="ledger-entry-heading"><h4>${esc(c.title)}</h4><span class="severity ${c.severity}">${c.severity}</span></div><dl><dt>CRM claim</dt><dd>${esc(c.crmClaim)}</dd><dt>Evidence conflict</dt><dd>${c.evidenceConflicts.length>1?`<ul class="ledger-conflicts">${c.evidenceConflicts.map(conflict=>`<li>${esc(conflict)}</li>`).join("")}</ul>`:esc(c.evidenceConflict)}</dd><dt>Why this matters</dt><dd>${esc(c.explanation)}</dd></dl></section>`).join("")}
   </article>`).join("")||'<p class="empty">No contradictions found under the current rules. Evidence gaps may still remain.</p>';
 }
 function filterDeals(deals,evidence,contradiction){
