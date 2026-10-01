@@ -437,7 +437,7 @@ function summarizeContradictions(deals){
 }
 function renderContradictions(){
   const audit=summarizeContradictions(analyzed);
-  $("contradictionSummary").textContent=`${fmtMoney(audit.amount)} across ${audit.deals} deals contains ${audit.count} contradictions between CRM claims and supporting evidence. Each opportunity's value is counted once.`;
+  $("contradictionSummary").textContent=`Cairn found ${audit.count} contradictions across ${audit.deals} deals representing ${fmtMoney(audit.amount)} of pipeline. Each opportunity’s value is counted once.`;
   $("kExposed").textContent=fmtMoney(audit.amount);
   $("kContradictionDeals").textContent=audit.deals;
   $("kContradictions").textContent=audit.count;
