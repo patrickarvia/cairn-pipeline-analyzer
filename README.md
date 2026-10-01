@@ -28,18 +28,31 @@ Every blocking claim is retained, but each assumption-dependent deal receives on
 
 The responsive Evidence Waterfall starts with Headline Pipeline, deducts each deal **exactly once** under its highest-priority blocker, and ends with Evidence-Supported Pipeline. Multiple gaps never cause a deal's value to be double-counted. All deductions sum to the Assumption Gap. Deal-review filters do not change the full-pipeline audit or CSV export.
 
+## Contradiction Ledger
+
+Evidence gaps and contradictions are different: missing or inferred evidence alone does not establish a contradiction. A contradiction requires a CRM claim about confidence, stage, timing, or progression that conflicts with its supporting evidence.
+
+The ledger groups contradictions by opportunity. Contradiction-exposed pipeline counts each opportunity once, even when that opportunity contains multiple contradictions. **Critical** and **Material** are transparent rule-based severity labels, not a health score.
+
+- **Critical:** Commit in stage or forecast with any unsupported Commit-critical claim (grouped into one entry); an upcoming close within 0–30 days without supported timeline or next step, or with stale/unknown momentum; an open opportunity with a past close date.
+- **Material:** Negotiation, Contract, Legal, Procurement, Closing, or Final with explicitly contradicted procurement or security/legal; advanced stages with stale buyer activity or only 0–1 mapped stakeholders. Advanced stages use the Evidence Core's Proposal, Evaluation, Pilot/POC, and later-stage matching. Unknown process evidence alone does not trigger a process contradiction.
+
+Past-due detection excludes stages explicitly labeled closed, won, lost, cancelled/canceled, or disqualified; exports have no separate open/closed status mapping. Dates use the existing calendar-day comparison. Stable family IDs prevent repeated entries for multiple failed fields in the same family. Evidence and contradiction filters combine in Deal Review without changing audit totals or the full-pipeline CSV.
+
 ## Preserved workflows
 
 CSV upload and drag/drop, automatic and manual field mapping, the Cairn visual system, reset, filtering, and browser-only CSV download remain available. The demo loads 12 fictional enterprise opportunities with a dedicated **Analyze sample pipeline** CTA and sample labels. Demo dates are generated relative to the local calendar day when loaded, using UTC calendar-day arithmetic to preserve the intended scenarios across timezones and DST. Amounts and business evidence remain unchanged.
 
-The analysis CSV includes Opportunity, Amount, Stage, Forecast, Close Date, Evidence Status, Primary Blocking Gap, Supported Evidence, Evidence Gaps, and Recommendations. Full Evidence Ledger, Contradiction Ledger, and Next Proof Required are outside this update.
+The analysis CSV includes Opportunity, Amount, Stage, Forecast, Close Date, Evidence Status, Primary Blocking Gap, Supported Evidence, Evidence Gaps, and Recommendations. The export also includes Contradiction Count, Highest Contradiction Severity, and readable Contradictions. Full Evidence Ledger and Next Proof Required are outside this update.
 
 ## Validation
 
-Run the dependency-free model regression checks with `node tests/evidence-core.cjs`. They cover stage differences, Commit requirements, activity/date boundaries, negative versus missing evidence, zero/empty totals, and waterfall accounting.
+Run the dependency-free model regression checks with `node tests/evidence-core.cjs` and `node tests/contradictions.cjs`. Contradiction tests cover all six families, grouping, unique exposure, combined filters, and CSV fields. Optional browser checks run with `node tests/browser.cjs` when Playwright and Chromium are available; set `CHROME_PATH` to use an installed Chrome executable. They cover stage differences, Commit requirements, activity/date boundaries, negative versus missing evidence, zero/empty totals, and waterfall accounting.
 
 The relative-date sample preserves the September 28, 2026 baseline: $2,220,000 Headline Pipeline, $715,000 Evidence-Supported (4 deals), and $1,505,000 Assumption Gap (8 deals). All eight assumption-dependent deals are deducted once. Browser validation also covers desktop/mobile layouts, console errors, demo, filtering, upload, drag/drop, auto/manual mapping, reset, and CSV export.
 
 ## Deploy
 
-Publish `index.html` through the repository's existing GitHub Pages workflow. This branch is intended for review; do not merge or deploy until approved.
+Production is deployed through Vercel from `main`. Pull-request branches generate Vercel Preview deployments.
+
+Live product: [Cairn Pipeline Analyzer](https://cairn-pipeline-analyzer.vercel.app).
