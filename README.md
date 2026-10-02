@@ -39,15 +39,21 @@ The ledger groups contradictions by opportunity. Contradiction-exposed pipeline 
 
 Past-due detection excludes stages explicitly labeled closed, won, lost, cancelled/canceled, or disqualified; exports have no separate open/closed status mapping. Dates use the existing calendar-day comparison. Stable family IDs prevent repeated entries for multiple failed fields in the same family. Evidence and contradiction filters combine in Deal Review without changing audit totals or the full-pipeline CSV.
 
+## Next Proof Required
+
+Proof requirements derive directly from the ordered Evidence Core blockers. Cairn surfaces one highest-priority proof per assumption-dependent opportunity, with additional blocker counts. The full-pipeline Proof Queue follows existing blocker priority, then opportunity amount, independently of Deal Review filters.
+
+Requirements are stage-aware and describe observable mapped CRM evidence, not generic advice. Resolving the next proof clears that blocker only; other blockers may remain. Evidence-Supported deals have no blocking proof requirement. No AI or probabilistic scoring is used.
+
 ## Preserved workflows
 
 CSV upload and drag/drop, automatic and manual field mapping, the Cairn visual system, reset, filtering, and browser-only CSV download remain available. The demo loads 12 fictional enterprise opportunities with a dedicated **Analyze sample pipeline** CTA and sample labels. Demo dates are generated relative to the local calendar day when loaded, using UTC calendar-day arithmetic to preserve the intended scenarios across timezones and DST. Amounts and business evidence remain unchanged.
 
-The analysis CSV includes Opportunity, Amount, Stage, Forecast, Close Date, Evidence Status, Primary Blocking Gap, Supported Evidence, Evidence Gaps, and Recommendations. The export also includes Contradiction Count, Highest Contradiction Severity, and readable Contradictions. Full Evidence Ledger and Next Proof Required are outside this update.
+The analysis CSV includes Opportunity, Amount, Stage, Forecast, Close Date, Evidence Status, Primary Blocking Gap, Supported Evidence, Evidence Gaps, and Recommendations. The export also includes Contradiction Count, Highest Contradiction Severity, and readable Contradictions. The export adds Next Proof Claim, Next Proof Current State, Next Proof Required, Next Proof Target State, and Additional Blocking Proof Count. Full Evidence Ledger remains outside this update.
 
 ## Validation
 
-Run the dependency-free model regression checks with `node tests/evidence-core.cjs` and `node tests/contradictions.cjs`. Contradiction tests cover all six families, grouping, unique exposure, combined filters, and CSV fields. Optional browser checks run with `node tests/browser.cjs` when Playwright and Chromium are available; set `CHROME_PATH` to use an installed Chrome executable. They cover stage differences, Commit requirements, activity/date boundaries, negative versus missing evidence, zero/empty totals, and waterfall accounting.
+Run the dependency-free model regression checks with `node tests/evidence-core.cjs` and `node tests/contradictions.cjs`, plus `node tests/next-proof.cjs`. Contradiction tests cover all six families, grouping, unique exposure, combined filters, and CSV fields. Optional browser checks run with `node tests/browser.cjs` when Playwright and Chromium are available; set `CHROME_PATH` to use an installed Chrome executable. They cover stage differences, Commit requirements, activity/date boundaries, negative versus missing evidence, zero/empty totals, and waterfall accounting.
 
 The relative-date sample preserves the September 28, 2026 baseline: $2,220,000 Headline Pipeline, $715,000 Evidence-Supported (4 deals), and $1,505,000 Assumption Gap (8 deals). All eight assumption-dependent deals are deducted once. Browser validation also covers desktop/mobile layouts, console errors, demo, filtering, upload, drag/drop, auto/manual mapping, reset, and CSV export.
 

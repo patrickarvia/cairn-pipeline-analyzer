@@ -81,6 +81,7 @@ select{width:100%;border:1px solid var(--border);border-radius:9px;padding:10px;
 .kpis.ledger-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:800px){.kpis.ledger-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.kpis.ledger-kpis{grid-template-columns:minmax(0,1fr)}}
+.proof-details{font-size:13px;line-height:1.5;overflow-wrap:anywhere}.proof-details dt{font-size:11px;text-transform:uppercase;font-weight:800;color:var(--muted);margin-top:10px}.proof-details dd{margin:3px 0 0}
 .deal-controls{display:flex;justify-content:space-between;gap:16px;align-items:center}
 .deal-list{display:grid;gap:12px;margin-top:16px}
 .deal{border:1px solid var(--border);border-radius:14px;padding:18px;background:#fff}
@@ -181,6 +182,12 @@ ul{margin:0;padding-left:18px}li{margin:4px 0;font-size:13px;line-height:1.45}.e
         <div class="kpi"><div class="label">Contradictions Found</div><div id="kContradictions" class="value">0</div></div>
       </div>
       <div id="contradictionLedger" class="deal-list"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="proofTitle">
+      <h3 id="proofTitle" class="section-title">Next Proof Required</h3>
+      <p class="hint">For each assumption-dependent deal, Cairn surfaces the highest-priority evidence required next. Resolving one proof requirement may leave additional evidence gaps.</p>
+      <div id="proofQueue" class="deal-list"></div>
     </section>
 
     <div class="panel">
@@ -335,6 +342,40 @@ const blockerReasons={
   "Commercial process gap":"budget or commercial-process evidence does not meet the requirements for this stage",
   "Other evidence gap":"the CRM stage is unknown"
 };
+// Proof rules consume the Evidence Core's ordered blockers and accepted states.
+function deriveProofRequirement(d,blocker,{step,future,close}){
+  const inferred=blocker.allowedStates.includes("Inferred");
+  const targetState=inferred?"Inferred or Supported":blocker.claimId==="stage"?"Mapped":"Supported";
+  const rules={
+    momentum:[`Document customer activity dated within the last ${inferred?30:14} days.`,`Last Activity Date is ${inferred?30:14} days old or less.`],
+    nextStep:[inferred?"Document a customer-owned next step or schedule a dated customer meeting.":step?"Verify the documented next step with the buyer and schedule a dated customer meeting.":future?"Document the customer-owned next step for the scheduled meeting.":"Document a customer-owned next step and schedule a dated customer meeting.",inferred?"At least one of those fields is present; both produce Supported evidence.":"Both a documented next step and a customer meeting dated today or later are present."],
+    problem:["Document the measurable business problem or use case.","Problem / Use Case contains documented customer context."],
+    champion:["Identify and document an active champion who can navigate the buying process.","Champion is explicitly confirmed or identified."],
+    economicBuyer:["Identify and document the economic buyer / executive sponsor with decision authority.","Economic Buyer is explicitly confirmed or identified."],
+    stakeholders:[`Map at least ${inferred?2:4} buying stakeholders.`,inferred?"Stakeholder Count is 2 or greater; 4 or greater produces Supported evidence.":"Stakeholder Count is 4 or greater."],
+    budget:["Confirm and document the budget source, amount, and approval path.","Budget is explicitly confirmed."],
+    decision:[inferred?"Document at least the known decision process and remaining approvals.":"Document the complete decision process, criteria, and remaining approvals.",inferred?"A partial or complete Decision Process is documented.":"Decision Process is documented and not marked Partial."],
+    timeline:[!close?"Add a valid close date and document the customer timeline, deadline, or compelling event supporting it.":"Document the customer deadline, compelling event, or timeline that supports the recorded close date.",inferred&&close?"A valid Close Date and documented customer timeline are present, or the valid Close Date is more than 45 days away (Inferred).":"A valid Close Date and documented customer timeline, deadline, or compelling event are present."],
+    procurement:["Document procurement as Started, In Progress, In Review, Complete, or Not Required.","Procurement has a recognized supported status."],
+    securityLegal:["Document security / legal as Started, In Progress, In Review, Complete, or Not Required.","Security / Legal has a recognized supported status."],
+    stage:["Map the opportunity to a recognized CRM stage.","A valid Stage value is available for stage-aware evaluation."]
+  };
+  const [proofRequired,supportedWhen]=rules[blocker.claimId];
+  return {claimId:blocker.claimId,claimLabel:d.claims.find(c=>c.id===blocker.claimId)?.label||"CRM stage",currentState:blocker.state,blocker,proofRequired,targetState:!close&&blocker.claimId==="timeline"?"Supported":targetState,supportedWhen};
+}
+function proofQueue(deals){
+  return deals.filter(d=>d.nextProof).slice().sort((a,b)=>blockerOrder.indexOf(a.primaryBlocker)-blockerOrder.indexOf(b.primaryBlocker)||b.amount-a.amount);
+}
+function proofDetails(d,queue=false){
+  const p=d.nextProof;
+  if(!p)return '<div class="empty">No blocking proof is required for the current CRM position. Keep the supporting evidence current.</div>';
+  const extra=d.proofRequirements.length-1;
+  return `<dl class="proof-details"><dt>${queue?"Current gap":"Current gap:"}</dt><dd>${esc(p.claimLabel)} · ${esc(p.currentState)}</dd><dt>${queue?"Next proof":"Proof required:"}</dt><dd>${esc(p.proofRequired)}</dd><dt>${queue?"Target evidence":"Target evidence:"}</dt><dd>${esc(p.targetState)}</dd>${queue?`<dt>Proof is satisfied when</dt><dd>${esc(p.supportedWhen)}</dd>`:""}</dl>${extra?`<div class="hint">${queue?`+ ${extra} additional blocking proof requirement${extra===1?"":"s"} remain`:`Additional blocking proof requirements: ${extra}`}</div>`:""}`;
+}
+function renderProofQueue(){
+  $("proofQueue").innerHTML=proofQueue(analyzed).map(d=>`<article class="deal"><div class="deal-name">${esc(d.name)}</div><div class="meta">${fmtMoney(d.amount)} • ${esc(d.stage)}${d.forecast?` • ${esc(d.forecast)}`:""}</div>${proofDetails(d,true)}</article>`).join("")||'<div class="empty">No blocking proof is required for the current pipeline.</div>';
+}
+
 function analyzeRow(row, referenceDate=new Date()){
   const today=calendarDay(referenceDate);
   const d={name:val(row,"name")||"Unnamed opportunity",amount:money(val(row,"amount")),
@@ -370,7 +411,7 @@ function analyzeRow(row, referenceDate=new Date()){
   const states=Object.fromEntries(d.claims.map(c=>[c.id,c.state]));
   const commit=isCommit(d.forecast)||isCommit(d.stage), advanced=commit||isAdvanced(d.stage);
   const late=commit||/(negoti|contract|legal|procurement|closing|final)/i.test(d.stage);
-  const block=(category,id,allowed)=>{if(!allowed.includes(states[id]))d.blockers.push({category,claimId:id,state:states[id]})};
+  const block=(category,id,allowed)=>{if(!allowed.includes(states[id]))d.blockers.push({category,claimId:id,state:states[id],allowedStates:allowed})};
   block(states.momentum==="Stale"?"Stale buyer momentum":states.momentum==="Inferred"?"Aging buyer momentum":"Unknown buyer momentum","momentum",commit?["Supported"]:["Supported","Inferred"]);
   block("Core business case missing","problem",["Supported"]);
   if(advanced){
@@ -386,8 +427,10 @@ function analyzeRow(row, referenceDate=new Date()){
     block("Commercial process gap","procurement",["Supported"]);
     block("Commercial process gap","securityLegal",["Supported"]);
   }
-  if(d.stage==="Unknown stage")d.blockers.push({category:"Other evidence gap",claimId:"stage",state:"Unknown"});
+  if(d.stage==="Unknown stage")d.blockers.push({category:"Other evidence gap",claimId:"stage",state:"Unknown",allowedStates:["Mapped"]});
   d.blockers.sort((a,b)=>blockerOrder.indexOf(a.category)-blockerOrder.indexOf(b.category));
+  d.proofRequirements=d.blockers.map(b=>deriveProofRequirement(d,b,{step,future:!!future,close:!!close}));
+  d.nextProof=d.proofRequirements[0]||null;
   d.primaryBlocker=d.blockers[0]?.category||"";
   d.status=d.blockers.length?"Assumption Dependent":"Evidence Supported";
   d.claims.forEach(c=>(c.state==="Supported"?d.evidence:d.gaps).push(`${c.label}: ${c.state}`));
@@ -494,6 +537,7 @@ function renderResults(){
   </div>`).join("");
 
   renderContradictions();
+  renderProofQueue();
   renderDeals();
 }
 
@@ -519,16 +563,16 @@ function renderDeals(){
         <div><h4>Gaps</h4>${d.gaps.length?`<ul>${d.gaps.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:`<div class="empty">No major evidence gaps detected.</div>`}</div>
       </div>
       ${d.contradictions.length?`<div class="contradiction-callout"><h4>Contradictions</h4><ul>${d.contradictions.map(c=>`<li><span class="severity ${c.severity}">${c.severity}</span> — ${esc(c.title)}</li>`).join("")}</ul></div>`:""}
-      <h4 style="margin-top:14px">Recommended action</h4>
-      ${d.recommendations.length?`<ul>${d.recommendations.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:`<div class="empty">Maintain momentum and keep the buying evidence current.</div>`}
+      <h4 style="margin-top:14px">Next Proof Required</h4>
+      ${proofDetails(d)}
     </div>`).join("");
 }
 
 function analysisCSV(){
-  const fields=["Opportunity","Amount","Stage","Forecast","Close Date","Evidence Status","Primary Blocking Gap","Supported Evidence","Evidence Gaps","Recommendations","Contradiction Count","Highest Contradiction Severity","Contradictions"];
+  const fields=["Opportunity","Amount","Stage","Forecast","Close Date","Evidence Status","Primary Blocking Gap","Supported Evidence","Evidence Gaps","Recommendations","Contradiction Count","Highest Contradiction Severity","Contradictions","Next Proof Claim","Next Proof Current State","Next Proof Required","Next Proof Target State","Additional Blocking Proof Count"];
   const rows=analyzed.map(d=>[
     d.name,d.amount,d.stage,d.forecast,d.closeDate,d.status,d.primaryBlocker,
-    d.evidence.join(" | "),d.gaps.join(" | "),d.recommendations.join(" | "),d.contradictions.length,highestSeverity(d),d.contradictions.map(c=>`${c.severity}: ${c.title}`).join(" | ")
+    d.evidence.join(" | "),d.gaps.join(" | "),d.recommendations.join(" | "),d.contradictions.length,highestSeverity(d),d.contradictions.map(c=>`${c.severity}: ${c.title}`).join(" | "),d.nextProof?.claimLabel||"",d.nextProof?.currentState||"",d.nextProof?.proofRequired||"",d.nextProof?.targetState||"",Math.max(0,d.proofRequirements.length-1)
   ]);
   const quote=v=>`"${String(v??"").replace(/"/g,'""')}"`;
   return [fields,...rows].map(r=>r.map(quote).join(",")).join("\n");
