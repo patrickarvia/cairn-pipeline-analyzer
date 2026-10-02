@@ -29,8 +29,8 @@ for(const evidence of ['All','Evidence Supported','Assumption Dependent'])for(co
 }
 const exported=get('parseCSV(analysisCSV())');
 assert.equal(exported.rows.length,12);
-assert.equal(exported.headers.length,13);
-assert.deepEqual(exported.headers.slice(-3),['Contradiction Count','Highest Contradiction Severity','Contradictions']);
+assert.equal(exported.headers.length,18);
+assert.deepEqual(exported.headers.slice(10,13),['Contradiction Count','Highest Contradiction Severity','Contradictions']);
 assert.equal(exported.rows[0]['Contradiction Count'],'2');
 assert.equal(exported.rows[0]['Highest Contradiction Severity'],'Critical');
 assert(exported.rows[0].Contradictions.includes('Critical: Commit confidence exceeds buyer evidence'));
