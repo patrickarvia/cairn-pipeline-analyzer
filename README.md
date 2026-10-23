@@ -1,8 +1,10 @@
-# Cairn Pipeline Analyzer V2
+# Cairn Pipeline Analyzer
 
-Browser-based pipeline evidence analyzer by Cairn GTM. No build, backend, database, charting dependency, or data upload is required; CRM data stays in the browser.
+Cairn Pipeline Analyzer is a free enterprise sales tool that tests whether CRM pipeline confidence is supported by buyer evidence, stakeholder engagement, risk signals, and next-step discipline. CRM data stays in the browser.
 
-[Open the live Cairn Pipeline Analyzer](https://cairn-pipeline-analyzer.vercel.app)
+[Open the live analyzer](https://cairn-pipeline-analyzer.vercel.app/) · [Product overview](https://patrickarvia.com/pipeline-analyzer/) · [Cairn GTM](https://cairngtm.com/) · [Built by Patrick Arvia](https://patrickarvia.com/)
+
+Current version: V2.
 
 ## Evidence Core
 
