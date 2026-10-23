@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
 
+User-agent: OAI-SearchBot
+Allow: /
+
 Sitemap: https://cairn-pipeline-analyzer.vercel.app/sitemap.xml
