@@ -108,6 +108,11 @@ button:hover{filter:brightness(.94)}
 .mapping-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:start;padding-bottom:18px;border-bottom:1px solid #E6E1D8}
 .mapping-summary{min-width:210px;text-align:right;font-size:12px;line-height:1.6;color:#5C6C70}
 .mapping-summary strong{display:block;color:var(--ink);font-size:14px}
+.source-context{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px;font-size:11px;line-height:1.4;color:#5C6C70}
+.source-context .source-label{font-weight:750;color:#425156}
+.source-context .source-chip{display:inline-flex;align-items:center;max-width:100%;border:1px solid #DEDAD1;background:#F7F5EF;border-radius:999px;padding:4px 8px;color:#344448;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.source-context .sheet-chip{background:#EEF3EF;border-color:#D7E2DA;color:#315044}
+.results-source{margin-top:7px}
 .mapping-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}
 .mapping-group-title{grid-column:1/-1;display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:8px;padding:8px 0 2px;border-bottom:1px solid #ECE8DF}
 .mapping-group-title:first-child{margin-top:0}
@@ -329,6 +334,7 @@ li{line-height:1.65}
     <div class="mapping-head">
       <div>
         <h3>Field mapping</h3>
+        <div id="mappingSource" class="source-context"></div>
         <div class="hint" style="margin:4px 0 0">Cairn matched the fields it recognizes. High-confidence matches are ready to go; review anything marked <strong>Check</strong> or <strong>Not mapped</strong>.</div>
       </div>
       <div id="mappingSummary" class="mapping-summary" aria-live="polite"></div>
@@ -345,6 +351,7 @@ li{line-height:1.65}
       <div>
         <div class="eyebrow">PIPELINE INTELLIGENCE</div>
         <h2>Pipeline evidence audit</h2>
+        <div id="resultsSource" class="source-context results-source"></div>
       </div>
       <div id="demoResultsLabel" class="demo-results-label">Sample data</div>
     </div>
@@ -436,7 +443,7 @@ const dateFieldKeys=new Set(["closeDate","lastActivity","nextMeeting"]);
 const booleanishFieldKeys=new Set(["champion","economicBuyer","budget"]);
 
 
-let rawRows=[], headers=[], mapping={}, mappingMeta={}, analyzed=[], demoMode=false, pendingWorkbook=null, pendingFileName="";
+let rawRows=[], headers=[], mapping={}, mappingMeta={}, analyzed=[], demoMode=false, pendingWorkbook=null, pendingFileName="", activeFileName="", activeSheetName="";
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
@@ -488,13 +495,26 @@ function parseGrid(grid){
   return {headers:hs.filter(Boolean),rows:data};
 }
 
+function sourceContextHTML(){
+  if(demoMode)return `<span class="source-label">Source</span><span class="source-chip">Cairn sample pipeline</span><span class="source-chip sheet-chip">Demo data</span>`;
+  if(!activeFileName)return "";
+  const file=`<span class="source-label">Source</span><span class="source-chip" title="${esc(activeFileName)}">${esc(activeFileName)}</span>`;
+  const sheet=activeSheetName?`<span class="source-chip sheet-chip" title="${esc(activeSheetName)}">Sheet: ${esc(activeSheetName)}</span>`:"";
+  return file+sheet;
+}
+function renderSourceContext(){
+  const html=sourceContextHTML();
+  $("mappingSource").innerHTML=html;
+  $("resultsSource").innerHTML=html;
+}
+
 function loadParsed(parsed, sourceLabel="file"){
   headers=parsed.headers; rawRows=parsed.rows;
   if(!headers.length || !rawRows.length){
     alert(`I couldn't find usable rows in this ${sourceLabel}. Make sure the first populated row contains column headers.`);
     return false;
   }
-  autoMap(); renderMapping();
+  autoMap(); renderMapping(); renderSourceContext();
   $("sheetPicker").classList.add("hidden");
   $("mappingSection").classList.remove("hidden");
   $("results").classList.add("hidden");
@@ -511,6 +531,8 @@ function parseWorkbookSheet(workbook, sheetName){
 function useWorkbookSheet(sheetName){
   if(!pendingWorkbook || !sheetName) return;
   const parsed=parseWorkbookSheet(pendingWorkbook,sheetName);
+  activeFileName=pendingFileName||"Excel workbook";
+  activeSheetName=sheetName;
   if(loadParsed(parsed,`Excel sheet "${sheetName}"`)){
     pendingWorkbook=null;
     pendingFileName="";
@@ -552,6 +574,8 @@ function openWorkbook(arrayBuffer,fileName){
 function handlePipelineFile(file){
   if(!file)return;
   demoMode=false;
+  activeFileName=file.name||"Pipeline export";
+  activeSheetName="";
   $("sampleReady").classList.remove("visible");
   $("sheetPicker").classList.add("hidden");
   const name=(file.name||"").toLowerCase();
@@ -564,7 +588,7 @@ function handlePipelineFile(file){
   }
   if(name.endsWith(".csv") || file.type==="text/csv" || !name.includes(".")){
     const reader=new FileReader();
-    reader.onload=()=>loadText(reader.result);
+    reader.onload=()=>{activeSheetName="";loadText(reader.result)};
     reader.onerror=()=>alert("I couldn't read that CSV file. Please try again.");
     reader.readAsText(file);
     return;
@@ -930,6 +954,7 @@ function summarize(deals){
 
 function runAnalysis(){
   analyzed=rawRows.map(row=>analyzeRow(row));
+  renderSourceContext();
   renderResults();
   $("demoResultsLabel").classList.toggle("visible", demoMode);
   setTimeout(()=>$("results").scrollIntoView({behavior:"smooth",block:"start"}),80);
@@ -1013,6 +1038,8 @@ dz.addEventListener("drop",e=>handlePipelineFile(e.dataTransfer.files[0]));
 $("useSheetBtn").onclick=()=>useWorkbookSheet($("sheetSelect").value);
 $("loadSample").onclick=()=>{
   demoMode=true;
+  activeFileName="";
+  activeSheetName="";
   const loadedToday=new Date();
   const sample=`Opportunity Name,Amount,Stage,Forecast Category,Close Date,Last Activity Date,Next Step,Next Meeting Date,Champion,Economic Buyer,Stakeholder Count,Budget Confirmed,Procurement Status,Security Legal Status,Problem Use Case,Decision Process,Customer Timeline
 Summit Manufacturing,310000,Negotiation,Commit,${demoDate(2,loadedToday)},${demoDate(-12,loadedToday)},Finalize redlines,${demoDate(-4,loadedToday)},Yes,Yes,6,Yes,Complete,Complete,Standardize global procurement benchmarking,Known,Must sign before FY planning lock
