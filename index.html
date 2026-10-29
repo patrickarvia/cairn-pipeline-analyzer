@@ -91,6 +91,10 @@ button:hover{filter:brightness(.94)}
 .primary{background:var(--green);color:white}.secondary{background:#eef1f4;color:var(--navy)}.ghost{background:white;border:1px solid var(--border);color:var(--navy)}
 .demo-btn{width:100%;background:var(--green);color:#fff;padding:13px 16px}
 .demo-note{font-size:12px;color:#7c725f;margin-top:9px;text-align:center}
+.sheet-picker{margin-top:18px;border:1px solid #D7D8D1;background:#F6F6F1;border-radius:15px;padding:18px;display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,.7fr);gap:18px;align-items:end}
+.sheet-picker h3{margin:0 0 5px;font-size:18px}.sheet-picker p{margin:0;color:#5C6C70;font-size:13px;line-height:1.5}
+.sheet-picker-controls{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}
+.sheet-picker-controls select{min-width:0}
 .sample-ready{margin-top:18px;border:1px solid #dfc78e;background:#fffaf0;border-radius:15px;padding:18px;display:none}
 .sample-ready.visible{display:block}
 .sample-top{display:flex;justify-content:space-between;gap:18px;align-items:start}
@@ -233,6 +237,7 @@ li{line-height:1.65}
  .shell{padding:16px 14px 40px}.product-header{padding:28px 24px;border-radius:24px;gap:14px}.product-header::before{left:24px}
  .title-wrap h1{font-size:36px;line-height:1.12}.sub{font-size:15px}.privacy{font-size:12px}
  .upload,.mapping,.panel{padding:20px;border-radius:22px}.entry-card{padding:20px}.entry-grid{gap:16px}
+ .sheet-picker{grid-template-columns:1fr;padding:18px}.sheet-picker-controls{grid-template-columns:1fr}.sheet-picker-controls .primary{width:100%}
  .results-head{margin-top:32px;padding-top:22px;gap:16px}.results-head h2{font-size:28px}
  .kpis{grid-template-columns:minmax(0,1fr);gap:12px}.kpi{padding:20px}.kpi .value{font-size:36px}
  .waterfall-row{grid-template-columns:minmax(0,1fr) auto;gap:8px;margin:20px 0}.waterfall-track{grid-row:2;grid-column:1 / -1;height:18px}
@@ -249,7 +254,7 @@ li{line-height:1.65}
     <div class="title-wrap">
       <h1>Pipeline Analyzer</h1>
       <div class="sub">Turn CRM stage labels into evidence: deal risk, missing stakeholders, stale opportunities, forecast gaps, and concrete next actions.</div>
-      <div class="privacy">🔒 Your data stays in your browser. Cairn does not upload or store your CSV.</div>
+      <div class="privacy">🔒 Your data stays in your browser. Cairn does not upload or store your files.</div>
     </div>
   </header>
 
@@ -258,12 +263,12 @@ li{line-height:1.65}
       <div class="entry-card">
         <div class="entry-label">Your pipeline</div>
         <h2>Analyze your CRM export</h2>
-        <p>Upload a CSV and Cairn will map the fields before analysis.</p>
+        <p>Upload a CSV or Excel file and Cairn will map the fields before analysis.</p>
         <label class="drop" id="dropZone" for="fileInput">
-          <strong>Drop a pipeline CSV here</strong>
+          <strong>Drop a CSV or Excel pipeline export here</strong>
           <span>or click to choose a file</span>
         </label>
-        <input id="fileInput" type="file" accept=".csv,text/csv" />
+        <input id="fileInput" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" />
       </div>
 
       <div class="entry-card demo">
@@ -272,6 +277,18 @@ li{line-height:1.65}
         <p>Try a fictional enterprise pipeline designed to demonstrate the Analyzer's risk and evidence signals.</p>
         <button id="loadSample" class="demo-btn">Try the demo →</button>
         <div class="demo-note">Fictional opportunities · demo data only</div>
+      </div>
+    </div>
+
+    <div id="sheetPicker" class="sheet-picker hidden" aria-live="polite">
+      <div>
+        <div class="entry-label">Excel workbook</div>
+        <h3>Select the sheet with your pipeline</h3>
+        <p id="sheetPickerNote">This workbook contains multiple sheets. Choose the one that contains your opportunity data.</p>
+      </div>
+      <div class="sheet-picker-controls">
+        <select id="sheetSelect" aria-label="Excel sheet"></select>
+        <button id="useSheetBtn" class="primary" type="button">Use this sheet →</button>
       </div>
     </div>
 
@@ -365,6 +382,7 @@ li{line-height:1.65}
   <div class="footer"><span>Built by Cairn GTM</span><span>Evidence-based pipeline assessment, not a forecast.</span></div>
 </div>
 
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script>
 const fieldDefs = [
   ["name","Opportunity Name",["opportunity name","deal name","opportunity","deal","name","account opportunity"]],
@@ -387,7 +405,7 @@ const fieldDefs = [
   ["owner","Owner",["owner","deal owner","opportunity owner","sales rep"]]
 ];
 
-let rawRows=[], headers=[], mapping={}, analyzed=[], demoMode=false;
+let rawRows=[], headers=[], mapping={}, analyzed=[], demoMode=false, pendingWorkbook=null, pendingFileName="";
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
@@ -417,6 +435,105 @@ function parseCSV(text){
   return {headers:hs,rows:data};
 }
 
+function parseGrid(grid){
+  if(!Array.isArray(grid) || !grid.length) return {headers:[],rows:[]};
+  const firstDataRow=grid.findIndex(r=>Array.isArray(r) && r.some(c=>String(c??"").trim()!==""));
+  if(firstDataRow<0) return {headers:[],rows:[]};
+  const hs=grid[firstDataRow].map(x=>String(x??"").trim());
+  const data=grid.slice(firstDataRow+1)
+    .filter(r=>Array.isArray(r) && r.some(c=>String(c??"").trim()!==""))
+    .map(r=>{
+      const o={};
+      hs.forEach((h,i)=>{ if(h) o[h]=String(r[i]??"").trim(); });
+      return o;
+    });
+  return {headers:hs.filter(Boolean),rows:data};
+}
+
+function loadParsed(parsed, sourceLabel="file"){
+  headers=parsed.headers; rawRows=parsed.rows;
+  if(!headers.length || !rawRows.length){
+    alert(`I couldn't find usable rows in this ${sourceLabel}. Make sure the first populated row contains column headers.`);
+    return false;
+  }
+  autoMap(); renderMapping();
+  $("sheetPicker").classList.add("hidden");
+  $("mappingSection").classList.remove("hidden");
+  $("results").classList.add("hidden");
+  return true;
+}
+
+function parseWorkbookSheet(workbook, sheetName){
+  const sheet=workbook.Sheets[sheetName];
+  if(!sheet) return {headers:[],rows:[]};
+  const grid=XLSX.utils.sheet_to_json(sheet,{header:1,defval:"",raw:false,blankrows:false});
+  return parseGrid(grid);
+}
+
+function useWorkbookSheet(sheetName){
+  if(!pendingWorkbook || !sheetName) return;
+  const parsed=parseWorkbookSheet(pendingWorkbook,sheetName);
+  if(loadParsed(parsed,`Excel sheet "${sheetName}"`)){
+    pendingWorkbook=null;
+    pendingFileName="";
+    $("mappingSection").scrollIntoView({behavior:"smooth",block:"start"});
+  }
+}
+
+function openWorkbook(arrayBuffer,fileName){
+  if(typeof XLSX==="undefined"){
+    alert("Excel support could not load. Please refresh the page and try again.");
+    return;
+  }
+  try{
+    const workbook=XLSX.read(arrayBuffer,{type:"array",cellDates:true});
+    const sheetNames=workbook.SheetNames||[];
+    if(!sheetNames.length){
+      alert("I couldn't find any worksheets in that Excel file.");
+      return;
+    }
+    pendingWorkbook=workbook;
+    pendingFileName=fileName||"Excel workbook";
+    if(sheetNames.length===1){
+      useWorkbookSheet(sheetNames[0]);
+      return;
+    }
+    const select=$("sheetSelect");
+    select.innerHTML=sheetNames.map(name=>`<option value="${esc(name)}">${esc(name)}</option>`).join("");
+    $("sheetPickerNote").textContent=`${pendingFileName} contains ${sheetNames.length} sheets. Choose the one that contains your opportunity data.`;
+    $("sheetPicker").classList.remove("hidden");
+    $("mappingSection").classList.add("hidden");
+    $("results").classList.add("hidden");
+    $("sheetPicker").scrollIntoView({behavior:"smooth",block:"center"});
+  }catch(err){
+    console.error(err);
+    alert("I couldn't read that Excel file. Please confirm it is a valid .xlsx or .xls workbook and try again.");
+  }
+}
+
+function handlePipelineFile(file){
+  if(!file)return;
+  demoMode=false;
+  $("sampleReady").classList.remove("visible");
+  $("sheetPicker").classList.add("hidden");
+  const name=(file.name||"").toLowerCase();
+  if(name.endsWith(".xlsx") || name.endsWith(".xls")){
+    const reader=new FileReader();
+    reader.onload=()=>openWorkbook(reader.result,file.name);
+    reader.onerror=()=>alert("I couldn't read that Excel file. Please try again.");
+    reader.readAsArrayBuffer(file);
+    return;
+  }
+  if(name.endsWith(".csv") || file.type==="text/csv" || !name.includes(".")){
+    const reader=new FileReader();
+    reader.onload=()=>loadText(reader.result);
+    reader.onerror=()=>alert("I couldn't read that CSV file. Please try again.");
+    reader.readAsText(file);
+    return;
+  }
+  alert("Please choose a CSV, .xlsx, or .xls pipeline export.");
+}
+
 function autoMap(){
   mapping={};
   const norms=headers.map(h=>normalize(h));
@@ -442,11 +559,7 @@ function renderMapping(){
 }
 
 function loadText(text){
-  const parsed=parseCSV(text); headers=parsed.headers; rawRows=parsed.rows;
-  if(!headers.length || !rawRows.length){alert("I couldn't find usable rows in that CSV.");return}
-  autoMap(); renderMapping();
-  $("mappingSection").classList.remove("hidden");
-  $("results").classList.add("hidden");
+  return loadParsed(parseCSV(text),"CSV");
 }
 
 function val(row,key){const col=mapping[key]; return col?String(row[col]??"").trim():""}
@@ -729,17 +842,12 @@ function downloadAnalysis(){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="cairn_pipeline_analysis.csv";a.click();URL.revokeObjectURL(a.href);
 }
 
-$("fileInput").addEventListener("change",e=>{
-  const file=e.target.files[0]; if(!file)return; demoMode=false; $("sampleReady").classList.remove("visible");
-  const reader=new FileReader(); reader.onload=()=>loadText(reader.result); reader.readAsText(file);
-});
+$("fileInput").addEventListener("change",e=>handlePipelineFile(e.target.files[0]));
 const dz=$("dropZone");
 ["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add("drag")}));
 ["dragleave","drop"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove("drag")}));
-dz.addEventListener("drop",e=>{
-  const file=e.dataTransfer.files[0]; if(!file)return; demoMode=false; $("sampleReady").classList.remove("visible");
-  const reader=new FileReader(); reader.onload=()=>loadText(reader.result); reader.readAsText(file);
-});
+dz.addEventListener("drop",e=>handlePipelineFile(e.dataTransfer.files[0]));
+$("useSheetBtn").onclick=()=>useWorkbookSheet($("sheetSelect").value);
 $("loadSample").onclick=()=>{
   demoMode=true;
   const loadedToday=new Date();
