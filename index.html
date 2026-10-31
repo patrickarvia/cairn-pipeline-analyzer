@@ -690,6 +690,50 @@ function autoMap(){
     if(!mappingMeta[key])mappingMeta[key]={score:0,reason:"No confident match",manual:false};
   });
 }
+function hubSpotPreferredHeader(key){
+  const candidates=headers.filter(header=>{
+    const h=normalize(header);
+    if(key==="lastActivity") return /last.*activity|activity.*last/.test(h);
+    if(key==="nextMeeting") return /next.*meeting|next.*activity/.test(h);
+    if(key==="problem") return /business.*problem|use.*case|problem.*use/.test(h);
+    return false;
+  });
+  if(!candidates.length) return "";
+  const rank=header=>{
+    const h=normalize(header);
+    const filled=rawRows.reduce((n,row)=>n+(String(row[header]??"").trim()?1:0),0);
+    let semantic=0;
+    if(key==="lastActivity"){
+      if(/last buyer activity/.test(h)) semantic+=40;
+      else if(/^last activity date$/.test(h)) semantic+=20;
+      if(/hubspot last sales activity/.test(h)) semantic-=10;
+    }else if(key==="nextMeeting"){
+      if(/next buyer meeting/.test(h)) semantic+=40;
+      else if(/^next meeting date$/.test(h)||/^next meeting$/.test(h)) semantic+=20;
+      if(/hubspot next activity/.test(h)) semantic-=10;
+    }else if(key==="problem"){
+      if(/business problem/.test(h)) semantic+=30;
+      if(/use case/.test(h)) semantic+=20;
+    }
+    return semantic + filled*5;
+  };
+  return candidates.sort((a,b)=>rank(b)-rank(a))[0];
+}
+function applyHubSpotMappingPreferences(){
+  ["lastActivity","nextMeeting","problem"].forEach(key=>{
+    const preferred=hubSpotPreferredHeader(key);
+    if(!preferred)return;
+    Object.keys(mapping).forEach(other=>{
+      if(other!==key && mapping[other]===preferred){
+        mapping[other]="";
+        mappingMeta[other]={score:0,reason:"HubSpot evidence column reassigned",manual:false};
+      }
+    });
+    mapping[key]=preferred;
+    mappingMeta[key]={score:100,reason:"Preferred HubSpot evidence property",manual:false};
+  });
+}
+
 function sampleText(header){
   if(!header)return "No source column selected";
   const vals=[];
@@ -1105,6 +1149,8 @@ async function importHubSpotDeals(){
     $("sampleReady").classList.remove("visible");
     $("sheetPicker").classList.add("hidden");
     if(loadParsed({headers:data.headers,rows:data.rows},"HubSpot")){
+      applyHubSpotMappingPreferences();
+      renderMapping();
       note.className="crm-note good";
       const closed=data.excludedClosedDeals? ` · ${data.excludedClosedDeals} closed excluded`:"";
       const limited=data.truncated?" · first 500 open deals":"";
