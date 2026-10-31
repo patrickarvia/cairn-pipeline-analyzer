@@ -86,12 +86,27 @@ function buildHeaders(selected, definitions) {
   const labels = new Map();
   const used = new Map();
 
+  const explicitLastActivity = selected.find(name => {
+    const def = defs.get(name);
+    return def && /last buyer activity/i.test(`${def.label || ""} ${def.name || ""}`);
+  });
+  const explicitNextMeeting = selected.find(name => {
+    const def = defs.get(name);
+    return def && /next buyer meeting/i.test(`${def.label || ""} ${def.name || ""}`);
+  });
+
   selected.forEach(name => {
-    let label = STANDARD[name] || (defs.get(name) && defs.get(name).label) || name;
-    if (label === "Last Activity Date" && used.has(label)) {
-      labels.set(name, null);
-      return;
+    const def = defs.get(name);
+    let label = STANDARD[name] || (def && def.label) || name;
+
+    if (name === explicitLastActivity) label = "Last Activity Date";
+    else if (name === explicitNextMeeting) label = "Next Meeting Date";
+    else if (explicitLastActivity && ["hs_last_sales_activity_timestamp","notes_last_contacted"].includes(name)) {
+      label = "HubSpot Last Sales Activity";
+    } else if (explicitNextMeeting && name === "hs_next_activity_date") {
+      label = "HubSpot Next Activity Date";
     }
+
     const count = (used.get(label) || 0) + 1;
     used.set(label, count);
     if (count > 1) label = `${label} (${name})`;
