@@ -59,6 +59,37 @@ Run the dependency-free model regression checks with `node tests/evidence-core.c
 
 The relative-date sample preserves the September 28, 2026 baseline: $2,220,000 Headline Pipeline, $715,000 Evidence-Supported (4 deals), and $1,505,000 Assumption Gap (8 deals). All eight assumption-dependent deals are deducted once. Browser validation also covers desktop/mobile layouts, console errors, demo, filtering, upload, drag/drop, auto/manual mapping, reset, and CSV export.
 
+
+## HubSpot read-only import
+
+The `crm-integrations` branch adds the first CRM integration path:
+
+`Connect HubSpot → OAuth → import open deals → Cairn field mapping → existing evidence analysis`
+
+The integration is intentionally read-only. Uploaded CSV/Excel files continue to stay in the browser. HubSpot records are fetched only when the user imports them and are returned directly to the browser; Cairn does not persist imported CRM records in this MVP.
+
+The OAuth access token is encrypted into a short-lived HttpOnly, Secure, SameSite=Lax cookie. The first version does not persist a refresh token, so a user reconnects after the HubSpot access token expires.
+
+Required HubSpot scopes:
+
+- `oauth`
+- `crm.objects.deals.read`
+- `crm.schemas.deals.read`
+
+Configure the HubSpot app redirect URL as:
+
+`https://cairn-pipeline-analyzer.vercel.app/api/hubspot/callback`
+
+Then add these Vercel environment variables (see `.env.example`):
+
+- `HUBSPOT_CLIENT_ID`
+- `HUBSPOT_CLIENT_SECRET`
+- `HUBSPOT_REDIRECT_URI`
+- `HUBSPOT_APP_URL`
+- `HUBSPOT_COOKIE_SECRET`
+
+The importer uses HubSpot's current date-based OAuth token endpoint and 2026-09 CRM API paths. It imports up to 500 open deals per request, resolves pipeline stage IDs to labels, converts enum values to their display labels, and includes matching custom deal properties so Cairn's existing field mapper can identify evidence fields such as champion, budget, procurement, security/legal, decision process, and customer timeline.
+
 ## Deploy
 
 Production is deployed through Vercel from `main`. Pull-request branches generate Vercel Preview deployments.

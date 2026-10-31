@@ -75,9 +75,10 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Inte
 .sub{font-size:17px;line-height:1.55;color:#5C6C70;max-width:780px;margin-top:18px}
 .privacy{display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:8px 11px;border-radius:999px;background:#eef1ec;font-size:13px;color:#53635d;font-weight:650}
 .upload{background:white;border:1px solid var(--border);border-radius:20px;padding:24px;box-shadow:var(--shadow)}
-.entry-grid{display:grid;grid-template-columns:1.45fr .9fr;gap:18px}
+.entry-grid{display:grid;grid-template-columns:1.15fr .82fr .82fr;gap:18px}
 .entry-card{border:1px solid var(--border);border-radius:16px;padding:20px;background:#fff}
 .entry-card.demo{background:#fbf7ed;border-color:#ead7ae}
+.entry-card.crm{background:#f3f7f4;border-color:#d9e5dd}
 .entry-label{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);font-weight:850;margin-bottom:8px}
 .entry-card h2{font-size:21px;letter-spacing:-.02em;margin:0 0 7px}
 .entry-card p{margin:0 0 16px;color:#5C6C70;line-height:1.5;font-size:14px}
@@ -90,6 +91,10 @@ button,.btn{appearance:none;border:0;border-radius:10px;padding:11px 15px;font-w
 button:hover{filter:brightness(.94)}
 .primary{background:var(--green);color:white}.secondary{background:#eef1f4;color:var(--navy)}.ghost{background:white;border:1px solid var(--border);color:var(--navy)}
 .demo-btn{width:100%;background:var(--green);color:#fff;padding:13px 16px}
+.crm-btn{width:100%;background:var(--navy);color:#fff;padding:13px 16px}
+.crm-btn:disabled{cursor:not-allowed;opacity:.55;filter:none}
+.crm-note{font-size:12px;color:#64736c;margin-top:9px;text-align:center;line-height:1.45}
+.crm-note.good{color:#28614f}.crm-note.error{color:#985348}
 .demo-note{font-size:12px;color:#7c725f;margin-top:9px;text-align:center}
 .sheet-picker{margin-top:18px;border:1px solid #D7D8D1;background:#F6F6F1;border-radius:15px;padding:18px;display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,.7fr);gap:18px;align-items:end}
 .sheet-picker h3{margin:0 0 5px;font-size:18px}.sheet-picker p{margin:0;color:#5C6C70;font-size:13px;line-height:1.5}
@@ -277,7 +282,7 @@ li{line-height:1.65}
     <div class="title-wrap">
       <h1>Pipeline Analyzer</h1>
       <div class="sub">Turn CRM stage labels into evidence: deal risk, missing stakeholders, stale opportunities, forecast gaps, and concrete next actions.</div>
-      <div class="privacy">🔒 Your data stays in your browser. Cairn does not upload or store your files.</div>
+      <div class="privacy">🔒 Uploaded files stay in your browser. Connected CRM imports are read-only and are not stored by Cairn.</div>
     </div>
   </header>
 
@@ -292,6 +297,14 @@ li{line-height:1.65}
           <span>or click to choose a file</span>
         </label>
         <input id="fileInput" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" />
+      </div>
+
+      <div class="entry-card crm">
+        <div class="entry-label">HubSpot · Read-only</div>
+        <h2>Import deals directly</h2>
+        <p>Connect HubSpot and send your open deals through Cairn's same field-mapping review.</p>
+        <button id="hubspotBtn" class="crm-btn" type="button">Connect HubSpot →</button>
+        <div id="hubspotStatus" class="crm-note">No CRM records are stored by Cairn.</div>
       </div>
 
       <div class="entry-card demo">
@@ -421,9 +434,9 @@ const fieldDefs = [
   ["stage","Stage",["opportunity stage","deal stage","sales stage","pipeline stage","stage"]],
   ["forecast","Forecast Category",["forecast category","forecast category name","forecast status","forecast"]],
   ["closeDate","Close Date",["close date","expected close date","estimated close date","deal close date","closing date","expected close","close"]],
-  ["lastActivity","Last Activity Date",["last activity date","last activity","last activity time","last touch date","last touch","last contacted date","last contacted","last engagement date","last engagement"]],
+  ["lastActivity","Last Activity Date",["last activity date","last buyer activity date","last activity","last activity time","last touch date","last touch","last contacted date","last contacted","last engagement date","last engagement"]],
   ["nextStep","Next Step",["next step","next steps","next action","next action item","next activity"]],
-  ["nextMeeting","Next Meeting Date",["next meeting date","next scheduled meeting","next meeting","next activity date","next scheduled activity","next step date","next activity time"]],
+  ["nextMeeting","Next Meeting Date",["next meeting date","next buyer meeting date","next scheduled meeting","next meeting","next activity date","next scheduled activity","next step date","next activity time"]],
   ["champion","Champion",["champion identified","has champion","customer champion","champion"]],
   ["economicBuyer","Economic Buyer",["economic buyer identified","economic buyer","exec sponsor","executive sponsor","decision maker","budget owner"]],
   ["stakeholders","Stakeholder Count",["stakeholder count","number of stakeholders","contact count","number of contacts","contacts","stakeholders"]],
@@ -443,7 +456,7 @@ const dateFieldKeys=new Set(["closeDate","lastActivity","nextMeeting"]);
 const booleanishFieldKeys=new Set(["champion","economicBuyer","budget"]);
 
 
-let rawRows=[], headers=[], mapping={}, mappingMeta={}, analyzed=[], demoMode=false, pendingWorkbook=null, pendingFileName="", activeFileName="", activeSheetName="";
+let rawRows=[], headers=[], mapping={}, mappingMeta={}, analyzed=[], demoMode=false, pendingWorkbook=null, pendingFileName="", activeFileName="", activeSheetName="", activeSourceDetail="", hubspotConnected=false;
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
@@ -500,7 +513,8 @@ function sourceContextHTML(){
   if(!activeFileName)return "";
   const file=`<span class="source-label">Source</span><span class="source-chip" title="${esc(activeFileName)}">${esc(activeFileName)}</span>`;
   const sheet=activeSheetName?`<span class="source-chip sheet-chip" title="${esc(activeSheetName)}">Sheet: ${esc(activeSheetName)}</span>`:"";
-  return file+sheet;
+  const detail=activeSourceDetail?`<span class="source-chip sheet-chip" title="${esc(activeSourceDetail)}">${esc(activeSourceDetail)}</span>`:"";
+  return file+sheet+detail;
 }
 function renderSourceContext(){
   const html=sourceContextHTML();
@@ -576,6 +590,7 @@ function handlePipelineFile(file){
   demoMode=false;
   activeFileName=file.name||"Pipeline export";
   activeSheetName="";
+  activeSourceDetail="";
   $("sampleReady").classList.remove("visible");
   $("sheetPicker").classList.add("hidden");
   const name=(file.name||"").toLowerCase();
@@ -675,6 +690,50 @@ function autoMap(){
     if(!mappingMeta[key])mappingMeta[key]={score:0,reason:"No confident match",manual:false};
   });
 }
+function hubSpotPreferredHeader(key){
+  const candidates=headers.filter(header=>{
+    const h=normalize(header);
+    if(key==="lastActivity") return /last.*activity|activity.*last/.test(h);
+    if(key==="nextMeeting") return /next.*meeting|next.*activity/.test(h);
+    if(key==="problem") return /business.*problem|use.*case|problem.*use/.test(h);
+    return false;
+  });
+  if(!candidates.length) return "";
+  const rank=header=>{
+    const h=normalize(header);
+    const filled=rawRows.reduce((n,row)=>n+(String(row[header]??"").trim()?1:0),0);
+    let semantic=0;
+    if(key==="lastActivity"){
+      if(/last buyer activity/.test(h)) semantic+=40;
+      else if(/^last activity date$/.test(h)) semantic+=20;
+      if(/hubspot last sales activity/.test(h)) semantic-=10;
+    }else if(key==="nextMeeting"){
+      if(/next buyer meeting/.test(h)) semantic+=40;
+      else if(/^next meeting date$/.test(h)||/^next meeting$/.test(h)) semantic+=20;
+      if(/hubspot next activity/.test(h)) semantic-=10;
+    }else if(key==="problem"){
+      if(/business problem/.test(h)) semantic+=30;
+      if(/use case/.test(h)) semantic+=20;
+    }
+    return semantic + filled*5;
+  };
+  return candidates.sort((a,b)=>rank(b)-rank(a))[0];
+}
+function applyHubSpotMappingPreferences(){
+  ["lastActivity","nextMeeting","problem"].forEach(key=>{
+    const preferred=hubSpotPreferredHeader(key);
+    if(!preferred)return;
+    Object.keys(mapping).forEach(other=>{
+      if(other!==key && mapping[other]===preferred){
+        mapping[other]="";
+        mappingMeta[other]={score:0,reason:"HubSpot evidence column reassigned",manual:false};
+      }
+    });
+    mapping[key]=preferred;
+    mappingMeta[key]={score:100,reason:"Preferred HubSpot evidence property",manual:false};
+  });
+}
+
 function sampleText(header){
   if(!header)return "No source column selected";
   const vals=[];
@@ -761,7 +820,7 @@ function isAdvanced(stage){
   const s=normalize(stage);
   return /(proposal|evaluation|pilot|poc|negoti|contract|legal|procurement|commit|closing|final)/.test(s)
 }
-function isCommit(fc){return /^(commit|committed)$/i.test(fc.trim())}
+function isCommit(fc){return /\bcommit(?:ted|ment)?\b/i.test(String(fc||"").trim())}
 function statusClass(s){return s.replace(/\s+/g,"-")}
 
 const blockerOrder=["Stale buyer momentum","Aging buyer momentum","Unknown buyer momentum","Core business case missing","Buyer authority gap","No customer-owned next step","Unverified customer-owned next step","Stakeholder coverage gap","Buying process unknown","Unsupported close date","Commercial process gap","Other evidence gap"];
@@ -834,7 +893,7 @@ function analyzeRow(row, referenceDate=new Date()){
   const process=key=>{
     const v=normalize(val(row,key));
     if(/^(not started|not complete|not completed|blocked|no)$/.test(v))return "Contradicted";
-    return /^(complete|completed|in progress|started|review|in review|not required)$/.test(v)?"Supported":"Unknown";
+    return /^(complete|completed|approved|cleared|in progress|started|review|in review|not required)$/.test(v)?"Supported":"Unknown";
   };
   const add=(id,label,state,action)=>d.claims.push({id,label,state,action});
   add("momentum","Buyer momentum",age===null||age<0?"Unknown":age<=14?"Supported":age<=30?"Inferred":"Stale","Revalidate buyer engagement and record recent customer activity.");
@@ -963,10 +1022,10 @@ function runAnalysis(){
 function renderResults(){
   $("results").classList.remove("hidden");
   const audit=summarize(analyzed);
-  $("kTotal").textContent=fmtMoney(audit.total); $("kDeals").textContent=`${analyzed.length} deals in CRM`;
+  $("kTotal").textContent=fmtMoney(audit.total); $("kDeals").textContent=`${analyzed.length} deal${analyzed.length===1?"":"s"} in CRM`;
   $("kSupported").textContent=fmtMoney(audit.supported); $("kSupportedDeals").textContent=`${audit.supportedCount} defensible deals`;
   $("kGap").textContent=fmtMoney(audit.gap); $("kGapDeals").textContent=`${audit.dependentCount} assumption-dependent deals`;
-  $("qualityText").textContent=`${fmtMoney(audit.supported)} of ${fmtMoney(audit.total)} can currently be defended by the evidence available in the CRM export. Cairn evaluates evidence relative to stage, with a higher bar for Commit deals.`;
+  $("qualityText").textContent=`${fmtMoney(audit.supported)} of ${fmtMoney(audit.total)} can currently be defended by the evidence available in the source data. Cairn evaluates evidence relative to stage, with a higher bar for Commit deals.`;
   let remaining=audit.total;
   const rows=[{label:"Headline Pipeline",amount:audit.total,count:analyzed.length,start:0,end:audit.total,kind:"headline"}];
   audit.deductions.forEach(g=>{
@@ -1030,6 +1089,110 @@ function downloadAnalysis(){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="cairn_pipeline_analysis.csv";a.click();URL.revokeObjectURL(a.href);
 }
 
+async function refreshHubSpotStatus(){
+  const btn=$("hubspotBtn"), note=$("hubspotStatus");
+  if(!btn || !note) return;
+  try{
+    const response=await fetch("/api/hubspot/status",{headers:{"Accept":"application/json"},cache:"no-store"});
+    const status=await response.json();
+    if(!status.configured){
+      hubspotConnected=false;
+      btn.disabled=true;
+      btn.textContent="HubSpot setup required";
+      note.className="crm-note";
+      note.textContent="Add the HubSpot app credentials in Vercel to enable this connection.";
+      return;
+    }
+    btn.disabled=false;
+    hubspotConnected=Boolean(status.connected);
+    btn.textContent=hubspotConnected?"Import from HubSpot →":"Connect HubSpot →";
+    note.className=`crm-note ${hubspotConnected?"good":""}`;
+    note.textContent=hubspotConnected
+      ?"Connected · read-only session · import open deals when ready."
+      :"Read-only OAuth · no CRM records are stored by Cairn.";
+  }catch{
+    hubspotConnected=false;
+    btn.disabled=false;
+    btn.textContent="Connect HubSpot →";
+    note.className="crm-note error";
+    note.textContent="HubSpot status is temporarily unavailable.";
+  }
+}
+
+async function importHubSpotDeals(){
+  const btn=$("hubspotBtn"), note=$("hubspotStatus");
+  const original=btn.textContent;
+  btn.disabled=true;
+  btn.textContent="Importing deals…";
+  note.className="crm-note";
+  note.textContent="Reading open deals and available deal properties…";
+  try{
+    const response=await fetch("/api/hubspot/deals",{headers:{"Accept":"application/json"},cache:"no-store"});
+    const data=await response.json();
+    if(response.status===401){
+      hubspotConnected=false;
+      btn.disabled=false;
+      btn.textContent="Reconnect HubSpot →";
+      note.className="crm-note error";
+      note.textContent=data.error||"Your HubSpot session expired.";
+      return;
+    }
+    if(!response.ok) throw new Error(data.error||"Could not import HubSpot deals.");
+    if(!Array.isArray(data.rows)||!data.rows.length){
+      throw new Error("No open HubSpot deals were available to import.");
+    }
+
+    demoMode=false;
+    activeFileName="HubSpot CRM";
+    activeSheetName="";
+    activeSourceDetail=`${data.importedDeals} open deal${data.importedDeals===1?"":"s"}`;
+    $("sampleReady").classList.remove("visible");
+    $("sheetPicker").classList.add("hidden");
+    if(loadParsed({headers:data.headers,rows:data.rows},"HubSpot")){
+      applyHubSpotMappingPreferences();
+      renderMapping();
+      note.className="crm-note good";
+      const closed=data.excludedClosedDeals? ` · ${data.excludedClosedDeals} closed excluded`:"";
+      const limited=data.truncated?" · first 500 open deals":"";
+      note.textContent=`Imported ${data.importedDeals} open deal${data.importedDeals===1?"":"s"}${closed}${limited}.`;
+      $("mappingSection").scrollIntoView({behavior:"smooth",block:"start"});
+    }
+    const cleanUrl=new URL(location.href);
+    cleanUrl.searchParams.delete("hubspot");
+    cleanUrl.searchParams.delete("reason");
+    history.replaceState({}, "", cleanUrl.pathname+cleanUrl.search+cleanUrl.hash);
+  }catch(err){
+    note.className="crm-note error";
+    note.textContent=err&&err.message?err.message:"Could not import HubSpot deals.";
+  }finally{
+    btn.disabled=false;
+    btn.textContent=hubspotConnected?"Import from HubSpot →":original;
+  }
+}
+
+async function bootstrapHubSpot(){
+  const params=new URLSearchParams(location.search);
+  const oauthState=params.get("hubspot");
+  await refreshHubSpotStatus();
+  if(oauthState==="connected" && hubspotConnected){
+    await importHubSpotDeals();
+  }else if(oauthState==="error"){
+    const note=$("hubspotStatus");
+    note.className="crm-note error";
+    note.textContent="HubSpot authorization did not complete. Please try connecting again.";
+    const cleanUrl=new URL(location.href);
+    cleanUrl.searchParams.delete("hubspot");
+    cleanUrl.searchParams.delete("reason");
+    history.replaceState({}, "", cleanUrl.pathname+cleanUrl.search+cleanUrl.hash);
+  }
+}
+
+$("hubspotBtn").onclick=()=>{
+  if(hubspotConnected) importHubSpotDeals();
+  else location.href="/api/hubspot/start";
+};
+bootstrapHubSpot();
+
 $("fileInput").addEventListener("change",e=>handlePipelineFile(e.target.files[0]));
 const dz=$("dropZone");
 ["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add("drag")}));
@@ -1040,6 +1203,7 @@ $("loadSample").onclick=()=>{
   demoMode=true;
   activeFileName="";
   activeSheetName="";
+  activeSourceDetail="";
   const loadedToday=new Date();
   const sample=`Opportunity Name,Amount,Stage,Forecast Category,Close Date,Last Activity Date,Next Step,Next Meeting Date,Champion,Economic Buyer,Stakeholder Count,Budget Confirmed,Procurement Status,Security Legal Status,Problem Use Case,Decision Process,Customer Timeline
 Summit Manufacturing,310000,Negotiation,Commit,${demoDate(2,loadedToday)},${demoDate(-12,loadedToday)},Finalize redlines,${demoDate(-4,loadedToday)},Yes,Yes,6,Yes,Complete,Complete,Standardize global procurement benchmarking,Known,Must sign before FY planning lock
