@@ -28,7 +28,8 @@ const MATCHERS = [
   /business problem|business pain|customer pain|use case/i,
   /decision process|buying process|decision criteria|approval process/i,
   /customer timeline|compelling event|decision deadline|why now/i,
-  /next meeting|next scheduled meeting/i
+  /next meeting|next scheduled meeting|next buyer meeting|next activity/i,
+  /last activity|last buyer activity|last touch|last contacted/i
 ];
 
 function normalize(value) {
