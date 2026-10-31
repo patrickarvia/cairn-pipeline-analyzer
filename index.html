@@ -978,10 +978,10 @@ function runAnalysis(){
 function renderResults(){
   $("results").classList.remove("hidden");
   const audit=summarize(analyzed);
-  $("kTotal").textContent=fmtMoney(audit.total); $("kDeals").textContent=`${analyzed.length} deals in CRM`;
+  $("kTotal").textContent=fmtMoney(audit.total); $("kDeals").textContent=`${analyzed.length} deal${analyzed.length===1?"":"s"} in CRM`;
   $("kSupported").textContent=fmtMoney(audit.supported); $("kSupportedDeals").textContent=`${audit.supportedCount} defensible deals`;
   $("kGap").textContent=fmtMoney(audit.gap); $("kGapDeals").textContent=`${audit.dependentCount} assumption-dependent deals`;
-  $("qualityText").textContent=`${fmtMoney(audit.supported)} of ${fmtMoney(audit.total)} can currently be defended by the evidence available in the CRM export. Cairn evaluates evidence relative to stage, with a higher bar for Commit deals.`;
+  $("qualityText").textContent=`${fmtMoney(audit.supported)} of ${fmtMoney(audit.total)} can currently be defended by the evidence available in the source data. Cairn evaluates evidence relative to stage, with a higher bar for Commit deals.`;
   let remaining=audit.total;
   const rows=[{label:"Headline Pipeline",amount:audit.total,count:analyzed.length,start:0,end:audit.total,kind:"headline"}];
   audit.deductions.forEach(g=>{
