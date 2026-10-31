@@ -849,7 +849,7 @@ function analyzeRow(row, referenceDate=new Date()){
   const process=key=>{
     const v=normalize(val(row,key));
     if(/^(not started|not complete|not completed|blocked|no)$/.test(v))return "Contradicted";
-    return /^(complete|completed|in progress|started|review|in review|not required)$/.test(v)?"Supported":"Unknown";
+    return /^(complete|completed|approved|cleared|in progress|started|review|in review|not required)$/.test(v)?"Supported":"Unknown";
   };
   const add=(id,label,state,action)=>d.claims.push({id,label,state,action});
   add("momentum","Buyer momentum",age===null||age<0?"Unknown":age<=14?"Supported":age<=30?"Inferred":"Stale","Revalidate buyer engagement and record recent customer activity.");
