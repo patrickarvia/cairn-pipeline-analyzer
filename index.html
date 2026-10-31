@@ -776,7 +776,7 @@ function isAdvanced(stage){
   const s=normalize(stage);
   return /(proposal|evaluation|pilot|poc|negoti|contract|legal|procurement|commit|closing|final)/.test(s)
 }
-function isCommit(fc){return /^(commit|committed)$/i.test(fc.trim())}
+function isCommit(fc){return /\bcommit(?:ted|ment)?\b/i.test(String(fc||"").trim())}
 function statusClass(s){return s.replace(/\s+/g,"-")}
 
 const blockerOrder=["Stale buyer momentum","Aging buyer momentum","Unknown buyer momentum","Core business case missing","Buyer authority gap","No customer-owned next step","Unverified customer-owned next step","Stakeholder coverage gap","Buying process unknown","Unsupported close date","Commercial process gap","Other evidence gap"];
