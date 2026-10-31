@@ -141,7 +141,7 @@ module.exports = async function handler(req, res) {
 
   try {
     const [propertyResponse, pipelineResponse] = await Promise.all([
-      hubspotFetch("/crm/2026-09/properties/deals?archived=false", session.accessToken),
+      hubspotFetch("/crm/properties/2026-09/deals?archived=false", session.accessToken),
       hubspotFetch("/crm/pipelines/2026-09/deals", session.accessToken)
     ]);
     const definitions = propertyResponse.results || [];
