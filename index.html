@@ -841,6 +841,7 @@ function setMapping(key,value){
   mapping[key]=value;
   mappingMeta[key]=value?{score:100,reason:"Selected manually",manual:true}:{score:0,reason:"Not mapped",manual:true};
   renderMapping();
+  const select=$("map-"+key);if(select)select.focus();
 }
 function updateMappingSummary(){
   const mapped=fieldDefs.filter(([key])=>mapping[key]).length;
@@ -1186,6 +1187,7 @@ async function refreshHubSpotStatus(){
     const status=await response.json();
     if(!status.configured){
       hubspotConnected=false;
+      setHubSpotConnectionState("setup");
       btn.disabled=true;
       btn.textContent="HubSpot setup required";
       note.className="crm-note";
@@ -1194,6 +1196,7 @@ async function refreshHubSpotStatus(){
     }
     btn.disabled=false;
     hubspotConnected=Boolean(status.connected);
+    setHubSpotConnectionState(hubspotConnected?"connected":"disconnected",status.hubId);
     btn.textContent=hubspotConnected?"Import from HubSpot →":"Connect HubSpot →";
     note.className=`crm-note ${hubspotConnected?"good":""}`;
     note.textContent=hubspotConnected
@@ -1201,6 +1204,7 @@ async function refreshHubSpotStatus(){
       :"Read-only OAuth · no CRM records are stored by Cairn.";
   }catch{
     hubspotConnected=false;
+    setHubSpotConnectionState("unavailable");
     btn.disabled=false;
     btn.textContent="Connect HubSpot →";
     note.className="crm-note error";
@@ -1220,6 +1224,7 @@ async function importHubSpotDeals(){
     const data=await response.json();
     if(response.status===401){
       hubspotConnected=false;
+      setHubSpotConnectionState("disconnected");
       btn.disabled=false;
       btn.textContent="Reconnect HubSpot →";
       note.className="crm-note error";
@@ -1235,6 +1240,7 @@ async function importHubSpotDeals(){
     activeFileName="HubSpot CRM";
     activeSheetName="";
     activeSourceDetail=`${data.importedDeals} open deal${data.importedDeals===1?"":"s"}`;
+    showImportFeedback("reading","HubSpot import","Mapping imported deal properties…");
     $("sampleReady").classList.remove("visible");
     $("sheetPicker").classList.add("hidden");
     if(loadParsed({headers:data.headers,rows:data.rows},"HubSpot")){
@@ -1253,12 +1259,27 @@ async function importHubSpotDeals(){
   }catch(err){
     note.className="crm-note error";
     note.textContent=err&&err.message?err.message:"Could not import HubSpot deals.";
+    showImportFeedback("error","HubSpot import could not complete","Review the connection and try importing again.");
   }finally{
     btn.disabled=false;
     btn.textContent=hubspotConnected?"Import from HubSpot →":original;
   }
 }
 
+async function disconnectHubSpot(){
+  const btn=$("hubspotBtn"),disconnect=$("hubspotDisconnect"),note=$("hubspotStatus");
+  disconnect.disabled=true;btn.disabled=true;
+  note.className="crm-note";note.textContent="Disconnecting HubSpot session…";
+  try{
+    const response=await fetch("/api/hubspot/disconnect",{method:"POST",headers:{"Accept":"application/json"},cache:"no-store"});
+    if(!response.ok)throw new Error("Could not disconnect. Please try again.");
+    hubspotConnected=false;setHubSpotConnectionState("disconnected");
+    btn.textContent="Connect HubSpot →";
+    note.className="crm-note good";note.textContent="HubSpot disconnected. You can reconnect whenever you're ready.";
+  }catch(err){
+    note.className="crm-note error";note.textContent=err.message||"Could not disconnect.";
+  }finally{disconnect.disabled=false;btn.disabled=false;}
+}
 async function bootstrapHubSpot(){
   const params=new URLSearchParams(location.search);
   const oauthState=params.get("hubspot");
@@ -1281,6 +1302,7 @@ $("hubspotBtn").onclick=()=>{
   else location.href="/api/hubspot/start";
 };
 bootstrapHubSpot();
+$("hubspotDisconnect").onclick=disconnectHubSpot;
 
 $("fileInput").addEventListener("change",e=>handlePipelineFile(e.target.files[0]));
 const dz=$("dropZone");
@@ -1293,6 +1315,7 @@ $("loadSample").onclick=()=>{
   activeFileName="";
   activeSheetName="";
   activeSourceDetail="";
+  hideImportFeedback();
   const loadedToday=new Date();
   const sample=`Opportunity Name,Amount,Stage,Forecast Category,Close Date,Last Activity Date,Next Step,Next Meeting Date,Champion,Economic Buyer,Stakeholder Count,Budget Confirmed,Procurement Status,Security Legal Status,Problem Use Case,Decision Process,Customer Timeline
 Summit Manufacturing,310000,Negotiation,Commit,${demoDate(2,loadedToday)},${demoDate(-12,loadedToday)},Finalize redlines,${demoDate(-4,loadedToday)},Yes,Yes,6,Yes,Complete,Complete,Standardize global procurement benchmarking,Known,Must sign before FY planning lock
