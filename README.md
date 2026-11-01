@@ -106,3 +106,29 @@ The importer uses HubSpot's current date-based OAuth token endpoint and 2026-09 
 Production is deployed through Vercel from `main`. Pull-request branches generate Vercel Preview deployments.
 
 Live product: [Cairn Pipeline Analyzer](https://cairn-pipeline-analyzer.vercel.app).
+
+## Salesforce read-only opportunity import — development preview
+
+This branch adds a Salesforce **External Client App (ECA)** OAuth 2.0 web-server connection using PKCE and server-side client credentials:
+
+`Connect Salesforce → OAuth → import up to 500 open opportunities → review field mapping → evidence audit`
+
+The API makes read-only GET requests to Salesforce Opportunity describe and SOQL query resources. It does not create, update, or delete Salesforce records, persist imported opportunity data on Cairn's server, or retain refresh tokens. OAuth state, PKCE verifier, and the short-lived (30-minute) session use Secure, HttpOnly, SameSite=Lax cookies; the access token is encrypted with AES-256-GCM.
+
+**Setup for an internal test org**
+
+1. In Salesforce Setup, create an External Client App (ECA), not a new legacy Connected App (new creation restricted since Spring '26).
+2. Enable OAuth with the **Web Server Flow**, allow the callback URL `https://cairn-pipeline-analyzer.vercel.app/api/salesforce/callback`, select **Manage user data via APIs (api)** scope, and enable PKCE (S256). Keep the web-server client secret private and use an appropriately restricted Salesforce user. For development against a sandbox org, set `SALESFORCE_LOGIN_URL=https://test.salesforce.com`.
+3. Configure `SALESFORCE_CLIENT_ID`, `SALESFORCE_CLIENT_SECRET`, `SALESFORCE_COOKIE_SECRET`, `SALESFORCE_REDIRECT_URI`, `SALESFORCE_APP_URL`, and optional `SALESFORCE_LOGIN_URL` in the Vercel project environment, never in git. Restart deployment after updating environment variables. The exact callback host must match the deployed app.
+4. Authorize the ECA from a Salesforce account with Opportunity read access and the required object/field permissions. For use by organizations beyond the app's creator, review Salesforce's ECA distribution and installation requirements; this initial integration has not been packaged for public multi-tenant distribution.
+
+**Behavior and limits**
+
+- Only opportunities with `IsClosed = false` are queried. The importer selects core Opportunity fields plus up to 26 relevant readable custom fields matching Cairn's evidence aliases. It reads at most the first 500 ordered by close date, reports truncation, and sends them directly to the browser.
+- Salesforce uses the `api` OAuth scope, which is **not itself a read-only permission**. The integration's implementation uses GET-only APIs; actual data access is governed by the authenticated user's Salesforce permissions. Configure a read-only integration user for additional protection.
+- Salesforce fields such as `LastActivityDate` reflect CRM activity and do not independently prove buyer engagement. Users should review field mapping and evidence, particularly Next Step, Champion, Budget, and customer-owned next meetings.
+- The Analyzer currently displays pipeline amounts in **USD only**. If an opportunity explicitly declares a non-USD CurrencyIsoCode, import is blocked rather than mixing currencies. If currency cannot be verified automatically, the UI reminds users to confirm it. No FX conversion or Salesforce write-back is provided.
+- Read-only API token sessions last 30 minutes and require reconnect; no automatic refresh is implemented.
+- Run `node tests/salesforce.cjs` to check OAuth state/PKCE, imports, permissions/error cases, and currency guard using mocked Salesforce API responses. Run `node tests/salesforce-browser.cjs` with Playwright available to verify the browser flow against mock endpoints. Existing regression suite remains unchanged.
+
+A real Salesforce ECA, org consent, and test Opportunity data are **required before calling the live OAuth connection validated**. Do not merge this experimental integration without that check.
