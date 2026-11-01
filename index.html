@@ -519,6 +519,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
 
 function setFlowStep(step){
+  if(typeof document.querySelectorAll!=="function")return;
   const order=["source","mapping","results"],current=order.indexOf(step);
   document.querySelectorAll("[data-flow]").forEach(el=>{
     const at=order.indexOf(el.dataset.flow);
@@ -545,6 +546,7 @@ function filterMappingOptions(key,search){
   select.value=selected;
 }
 function wireMappingSearch(){
+  if(typeof document.querySelectorAll!=="function")return;
   document.querySelectorAll(".map-search-toggle").forEach(btn=>btn.addEventListener("click",()=>{
     const input=$("search-"+btn.dataset.searchKey),opening=input.classList.contains("hidden");
     input.classList.toggle("hidden",!opening);btn.setAttribute("aria-expanded",String(opening));
@@ -1134,6 +1136,14 @@ async function runAnalysis(){
   if(analysisActive)return;
   if(!rawRows.length){
     showAnalysisProgress("error","No pipeline data loaded","Choose a CSV, Excel workbook, HubSpot import, or sample pipeline first.");
+    return;
+  }
+  // In non-visual test environments without an animation frame scheduler, keep the audit synchronous.
+  if(typeof requestAnimationFrame!=="function"){
+    analyzed=rawRows.map(row=>analyzeRow(row));
+    renderSourceContext();renderResults();
+    $("demoResultsLabel").classList.toggle("visible",demoMode);
+    setFlowStep("results");
     return;
   }
   analysisActive=true;
