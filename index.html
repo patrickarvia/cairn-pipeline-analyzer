@@ -75,7 +75,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Inte
 .sub{font-size:17px;line-height:1.55;color:#5C6C70;max-width:780px;margin-top:18px}
 .privacy{display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:8px 11px;border-radius:999px;background:#eef1ec;font-size:13px;color:#53635d;font-weight:650}
 .upload{background:white;border:1px solid var(--border);border-radius:20px;padding:24px;box-shadow:var(--shadow)}
-.entry-grid{display:grid;grid-template-columns:1.15fr .82fr .82fr;gap:18px}
+.entry-grid{display:grid;grid-template-columns:1.15fr .82fr .82fr .82fr;gap:18px}
 .entry-card{border:1px solid var(--border);border-radius:16px;padding:20px;background:#fff}
 .entry-card.demo{background:#fbf7ed;border-color:#ead7ae}
 .entry-card.crm{background:#f3f7f4;border-color:#d9e5dd}
@@ -358,6 +358,18 @@ li{line-height:1.65}
          </div>
       </div>
 
+      <div class="entry-card crm">
+        <div class="entry-label">Salesforce · Read-only import</div>
+        <h2>Import opportunities</h2>
+        <p>Connect Salesforce to audit open opportunities. First release supports USD pipelines.</p>
+        <button id="salesforceBtn" class="crm-btn" type="button">Connect Salesforce →</button>
+        <div id="salesforceStatus" class="crm-note" role="status" aria-live="polite">No CRM records are stored by Cairn.</div>
+        <div id="salesforceConnection" class="crm-connection" hidden>
+          <span class="crm-indicator"><span class="crm-dot" aria-hidden="true"></span><span id="salesforceConnectedLabel">Salesforce connected · read-only import</span></span>
+          <button id="salesforceDisconnect" class="crm-disconnect" type="button">Disconnect</button>
+        </div>
+      </div>
+
       <div class="entry-card demo">
         <div class="entry-label">No file required</div>
         <h2>See what Cairn finds</h2>
@@ -515,7 +527,7 @@ const dateFieldKeys=new Set(["closeDate","lastActivity","nextMeeting"]);
 const booleanishFieldKeys=new Set(["champion","economicBuyer","budget"]);
 
 
-let rawRows=[], headers=[], mapping={}, mappingMeta={}, analyzed=[], demoMode=false, pendingWorkbook=null, pendingFileName="", activeFileName="", activeSheetName="", activeSourceDetail="", hubspotConnected=false;
+let rawRows=[], headers=[], mapping={}, mappingMeta={}, analyzed=[], demoMode=false, pendingWorkbook=null, pendingFileName="", activeFileName="", activeSheetName="", activeSourceDetail="", hubspotConnected=false, salesforceConnected=false;
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
@@ -539,6 +551,10 @@ function hideImportFeedback(){$("importFeedback").classList.add("hidden");}
 function setHubSpotConnectionState(state,hubId){
   $("hubspotConnection").hidden=state!=="connected";
   if(state==="connected")$("hubspotConnectedLabel").textContent="HubSpot connected · read-only"+(hubId?" · Portal "+String(hubId):"");
+}
+function setSalesforceConnectionState(state,orgId){
+  $("salesforceConnection").hidden=state!=="connected";
+  if(state==="connected")$("salesforceConnectedLabel").textContent="Salesforce connected · read-only"+(orgId?" · Org "+String(orgId):"");
 }
 function filterMappingOptions(key,search){
   const select=$("map-"+key);if(!select)return;
@@ -1137,7 +1153,7 @@ function showAnalysisProgress(kind,title,detail){
 async function runAnalysis(){
   if(analysisActive)return;
   if(!rawRows.length){
-    showAnalysisProgress("error","No pipeline data loaded","Choose a CSV, Excel workbook, HubSpot import, or sample pipeline first.");
+    showAnalysisProgress("error","No pipeline data loaded","Choose a CSV, Excel workbook, HubSpot/Salesforce import, or sample pipeline first.");
     return;
   }
   // In non-visual test environments without an animation frame scheduler, keep the audit synchronous.
@@ -1367,12 +1383,137 @@ async function bootstrapHubSpot(){
   }
 }
 
+async function refreshSalesforceStatus(){
+  const btn=$("salesforceBtn"), note=$("salesforceStatus");
+  if(!btn || !note) return;
+  try{
+    const response=await fetch("/api/salesforce/status",{headers:{"Accept":"application/json"},cache:"no-store"});
+    const status=await response.json();
+    if(!status.configured){
+      salesforceConnected=false;
+      setSalesforceConnectionState("setup");
+      btn.disabled=true;
+      btn.textContent="Salesforce setup required";
+      note.className="crm-note";
+      note.textContent="Add the Salesforce app credentials in Vercel to enable this connection.";
+      return;
+    }
+    btn.disabled=false;
+    salesforceConnected=Boolean(status.connected);
+    setSalesforceConnectionState(salesforceConnected?"connected":"disconnected",status.orgId);
+    btn.textContent=salesforceConnected?"Import from Salesforce →":"Connect Salesforce →";
+    note.className=`crm-note ${salesforceConnected?"good":""}`;
+    note.textContent=salesforceConnected
+      ?"Connected · read-only session · import open deals when ready."
+      :"Read-only OAuth · no CRM records are stored by Cairn.";
+  }catch{
+    salesforceConnected=false;
+    setSalesforceConnectionState("unavailable");
+    btn.disabled=false;
+    btn.textContent="Connect Salesforce →";
+    note.className="crm-note error";
+    note.textContent="Salesforce status is temporarily unavailable.";
+  }
+}
+
+async function importSalesforceOpportunities(){
+  const btn=$("salesforceBtn"), note=$("salesforceStatus");
+  const original=btn.textContent;
+  btn.disabled=true;
+  btn.textContent="Importing deals…";
+  note.className="crm-note";
+  note.textContent="Reading open deals and available deal properties…";
+  try{
+    const response=await fetch("/api/salesforce/opportunities",{headers:{"Accept":"application/json"},cache:"no-store"});
+    const data=await response.json();
+    if(response.status===401){
+      salesforceConnected=false;
+      setSalesforceConnectionState("disconnected");
+      btn.disabled=false;
+      btn.textContent="Reconnect Salesforce →";
+      note.className="crm-note error";
+      note.textContent=data.error||"Your Salesforce session expired.";
+      return;
+    }
+    if(!response.ok) throw new Error(data.error||"Could not import Salesforce deals.");
+    if(!Array.isArray(data.rows)||!data.rows.length){
+      throw new Error("No open Salesforce opportunities were available to import.");
+    }
+
+    demoMode=false;
+    activeFileName="Salesforce CRM";
+    activeSheetName="";
+    activeSourceDetail=`${data.importedDeals} open deal${data.importedDeals===1?"":"s"}`;
+    showImportFeedback("reading","Salesforce import","Mapping imported deal properties…");
+    $("sampleReady").classList.remove("visible");
+    $("sheetPicker").classList.add("hidden");
+    if(loadParsed({headers:data.headers,rows:data.rows},"Salesforce")){
+      
+      renderMapping();
+      note.className="crm-note good";
+      
+      const limited=data.truncated?" · first 500 open opportunities":"";
+      note.textContent=`Imported ${data.importedDeals} open opportunities${limited}. ${data.currencyVerified?"USD confirmed.":"Confirm your source currency is USD."}`;
+      $("mappingSection").scrollIntoView({behavior:"smooth",block:"start"});
+    }
+    const cleanUrl=new URL(location.href);
+    cleanUrl.searchParams.delete("salesforce");
+    cleanUrl.searchParams.delete("reason");
+    history.replaceState({}, "", cleanUrl.pathname+cleanUrl.search+cleanUrl.hash);
+  }catch(err){
+    note.className="crm-note error";
+    note.textContent=err&&err.message?err.message:"Could not import Salesforce deals.";
+    showImportFeedback("error","Salesforce import could not complete","Review the connection and try importing again.");
+  }finally{
+    btn.disabled=false;
+    btn.textContent=salesforceConnected?"Import from Salesforce →":original;
+  }
+}
+
+async function disconnectSalesforce(){
+  const btn=$("salesforceBtn"),disconnect=$("salesforceDisconnect"),note=$("salesforceStatus");
+  disconnect.disabled=true;btn.disabled=true;
+  note.className="crm-note";note.textContent="Disconnecting Salesforce session…";
+  try{
+    const response=await fetch("/api/salesforce/disconnect",{method:"POST",headers:{"Accept":"application/json"},cache:"no-store"});
+    if(!response.ok)throw new Error("Could not disconnect. Please try again.");
+    salesforceConnected=false;setSalesforceConnectionState("disconnected");
+    btn.textContent="Connect Salesforce →";
+    note.className="crm-note good";note.textContent="Salesforce disconnected. You can reconnect whenever you're ready.";
+  }catch(err){
+    note.className="crm-note error";note.textContent=err.message||"Could not disconnect.";
+  }finally{disconnect.disabled=false;btn.disabled=false;}
+}
+async function bootstrapSalesforce(){
+  if(typeof URLSearchParams==="undefined"||typeof location==="undefined"||location.protocol==="file:")return;
+  const params=new URLSearchParams(location.search);
+  const oauthState=params.get("salesforce");
+  await refreshSalesforceStatus();
+  if(oauthState==="connected" && salesforceConnected){
+    await importSalesforceOpportunities();
+  }else if(oauthState==="error"){
+    const note=$("salesforceStatus");
+    note.className="crm-note error";
+    note.textContent="Salesforce authorization did not complete. Please try connecting again.";
+    const cleanUrl=new URL(location.href);
+    cleanUrl.searchParams.delete("salesforce");
+    cleanUrl.searchParams.delete("reason");
+    history.replaceState({}, "", cleanUrl.pathname+cleanUrl.search+cleanUrl.hash);
+  }
+}
+
 $("hubspotBtn").onclick=()=>{
   if(hubspotConnected) importHubSpotDeals();
   else location.href="/api/hubspot/start";
 };
 bootstrapHubSpot();
 $("hubspotDisconnect").onclick=disconnectHubSpot;
+$("salesforceBtn").onclick=()=>{
+  if(salesforceConnected)importSalesforceOpportunities();
+  else location.href="/api/salesforce/start";
+};
+bootstrapSalesforce();
+$("salesforceDisconnect").onclick=disconnectSalesforce;
 
 $("fileInput").addEventListener("change",e=>handlePipelineFile(e.target.files[0]));
 const dz=$("dropZone");
