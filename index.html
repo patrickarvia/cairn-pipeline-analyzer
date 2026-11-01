@@ -1348,7 +1348,7 @@ async function disconnectHubSpot(){
   }finally{disconnect.disabled=false;btn.disabled=false;}
 }
 async function bootstrapHubSpot(){
-  if(typeof URLSearchParams==="undefined"||typeof location==="undefined")return;
+  if(typeof URLSearchParams==="undefined"||typeof location==="undefined"||location.protocol==="file:")return;
   const params=new URLSearchParams(location.search);
   const oauthState=params.get("hubspot");
   await refreshHubSpotStatus();
