@@ -47,6 +47,17 @@ Proof requirements derive directly from the ordered Evidence Core blockers. Cair
 
 Requirements are stage-aware and describe observable mapped CRM evidence, not generic advice. Resolving the next proof clears that blocker only; other blockers may remain. Evidence-Supported deals have no blocking proof requirement. No AI or probabilistic scoring is used.
 
+## Interface refinement — Phases 1 and 2
+
+The enterprise/editorial visual direction and the evidence rules remain unchanged.
+
+- The HubSpot card now presents an explicit connected/read-only state and lets users disconnect through the existing session endpoint. Expired sessions show reconnection guidance.
+- File import has accessible inline feedback for parsing, invalid inputs, worksheet selection, and the detected row/column count. Uploaded file, worksheet, and imported source remain visible during field mapping and in results.
+- Field mapping preserves the native accessible dropdowns and adds optional per-field search when the source contains more than eight columns. Mapping badges distinguish auto-selected suggestions, manually confirmed fields, and unmapped fields; missing core columns produce a clear, non-blocking warning.
+- A three-step workflow indicator and real, batch-based analysis progress provide feedback without invented delays or percentages.
+- Results add an evidence-support summary, subdued KPI reveal motion, and clearer empty states. Animations respect reduced-motion preferences.
+- Core model regression tests and optional browser tests verify that calculations, CSV exports, mapping, upload/reset, and mobile behavior remain intact.
+
 ## Preserved workflows
 
 CSV upload and drag/drop, automatic and manual field mapping, the Cairn visual system, reset, filtering, and browser-only CSV download remain available. The demo loads 12 fictional enterprise opportunities with a dedicated **Analyze sample pipeline** CTA and sample labels. Demo dates are generated relative to the local calendar day when loaded, using UTC calendar-day arithmetic to preserve the intended scenarios across timezones and DST. Amounts and business evidence remain unchanged.
