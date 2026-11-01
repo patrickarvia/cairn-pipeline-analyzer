@@ -314,6 +314,29 @@ li{line-height:1.65}
 @keyframes cairn-spin{to{transform:rotate(360deg)}}
 @keyframes cairn-rise{from{opacity:.45;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.analysis-progress .progress-mark,.results.reveal>.kpis>.kpi{animation:none!important}}
+
+/* Source cards: equal widths, aligned actions, and comfortable responsive columns.
+   Subgrid shares label, heading and description heights across cards in each row. */
+.entry-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.entry-grid>.entry-card{
+  display:grid;grid-row:span 4;grid-template-rows:subgrid;min-width:0;
+  padding:20px;align-content:start
+}
+.entry-card>.entry-label{margin:0 0 10px}
+.entry-card>h2{font-size:20px;line-height:1.3;margin:0 0 10px}
+.entry-card>p{font-size:13px;line-height:1.6;margin:0 0 18px}
+.entry-actions{min-width:0;align-self:start}
+.entry-actions>.crm-btn,.entry-actions>.demo-btn{width:100%;min-height:48px;padding:12px 10px;font-size:13px;line-height:1.35}
+.entry-actions>.drop{min-height:96px;padding:18px 12px}
+.entry-actions>.drop strong{font-size:14px;line-height:1.35}
+.entry-actions>.drop span{display:block;margin-top:6px;line-height:1.4}
+@media(max-width:1120px){
+  .entry-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+}
+@media(max-width:640px){
+  .entry-grid{grid-template-columns:minmax(0,1fr);gap:14px}
+  .entry-grid>.entry-card{padding:20px}
+}
 </style>
 </head>
 <body>
@@ -338,35 +361,40 @@ li{line-height:1.65}
         <div class="entry-label">Your pipeline</div>
         <h2>Analyze your CRM export</h2>
         <p>Upload a CSV or Excel file and Cairn will map the fields before analysis.</p>
+        <div class="entry-actions">
         <label class="drop" id="dropZone" for="fileInput">
           <strong>Drop a CSV or Excel pipeline export here</strong>
           <span>or click to choose a file</span>
         </label>
         <input id="fileInput" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" />
-
+        </div>
       </div>
 
       <div class="entry-card crm">
         <div class="entry-label">HubSpot · Read-only</div>
         <h2>Import deals directly</h2>
         <p>Connect HubSpot and send your open deals through Cairn's same field-mapping review.</p>
+        <div class="entry-actions">
         <button id="hubspotBtn" class="crm-btn" type="button">Connect HubSpot →</button>
         <div id="hubspotStatus" class="crm-note" role="status" aria-live="polite">No CRM records are stored by Cairn.</div>
          <div id="hubspotConnection" class="crm-connection" hidden>
            <span class="crm-indicator"><span class="crm-dot" aria-hidden="true"></span><span id="hubspotConnectedLabel">HubSpot connected · read-only</span></span>
            <button id="hubspotDisconnect" class="crm-disconnect" type="button">Disconnect</button>
          </div>
+        </div>
       </div>
 
       <div class="entry-card crm">
         <div class="entry-label">Salesforce · Read-only import</div>
         <h2>Import opportunities</h2>
         <p>Connect Salesforce to audit open opportunities. First release supports USD pipelines.</p>
+        <div class="entry-actions">
         <button id="salesforceBtn" class="crm-btn" type="button">Connect Salesforce →</button>
         <div id="salesforceStatus" class="crm-note" role="status" aria-live="polite">No CRM records are stored by Cairn.</div>
         <div id="salesforceConnection" class="crm-connection" hidden>
           <span class="crm-indicator"><span class="crm-dot" aria-hidden="true"></span><span id="salesforceConnectedLabel">Salesforce connected · read-only import</span></span>
           <button id="salesforceDisconnect" class="crm-disconnect" type="button">Disconnect</button>
+        </div>
         </div>
       </div>
 
@@ -374,8 +402,10 @@ li{line-height:1.65}
         <div class="entry-label">No file required</div>
         <h2>See what Cairn finds</h2>
         <p>Try a fictional enterprise pipeline designed to demonstrate the Analyzer's risk and evidence signals.</p>
+        <div class="entry-actions">
         <button id="loadSample" class="demo-btn">Try the demo →</button>
         <div class="demo-note">Fictional opportunities · demo data only</div>
+        </div>
       </div>
     </div>
 
