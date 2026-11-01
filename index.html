@@ -602,12 +602,15 @@ function renderSourceContext(){
 }
 
 function loadParsed(parsed, sourceLabel="file"){
-  headers=parsed.headers; rawRows=parsed.rows;
-  if(!headers.length || !rawRows.length){
-    alert(`I couldn't find usable rows in this ${sourceLabel}. Make sure the first populated row contains column headers.`);
+  if(!parsed.headers.length || !parsed.rows.length){
+    showImportFeedback("error","No usable pipeline rows found","Check that the first populated row contains column headers, then try again.");
     return false;
   }
+  headers=parsed.headers; rawRows=parsed.rows;
   autoMap(); renderMapping(); renderSourceContext();
+  if(demoMode)hideImportFeedback();
+  else showImportFeedback("ready",activeFileName||"Pipeline ready",rawRows.length+" row"+(rawRows.length===1?"":"s")+" detected · "+headers.length+" columns ready for review"+(activeSheetName?" · Sheet: "+activeSheetName:""));
+  setFlowStep("mapping");
   $("sheetPicker").classList.add("hidden");
   $("mappingSection").classList.remove("hidden");
   $("results").classList.add("hidden");
@@ -635,14 +638,14 @@ function useWorkbookSheet(sheetName){
 
 function openWorkbook(arrayBuffer,fileName){
   if(typeof XLSX==="undefined"){
-    alert("Excel support could not load. Please refresh the page and try again.");
+    showImportFeedback("error","Excel reader unavailable","Refresh the page, or export your workbook as CSV and try again.");
     return;
   }
   try{
     const workbook=XLSX.read(arrayBuffer,{type:"array",cellDates:true});
     const sheetNames=workbook.SheetNames||[];
     if(!sheetNames.length){
-      alert("I couldn't find any worksheets in that Excel file.");
+      showImportFeedback("error","No worksheets found","Check the Excel workbook and try again.");
       return;
     }
     pendingWorkbook=workbook;
@@ -654,13 +657,14 @@ function openWorkbook(arrayBuffer,fileName){
     const select=$("sheetSelect");
     select.innerHTML=sheetNames.map(name=>`<option value="${esc(name)}">${esc(name)}</option>`).join("");
     $("sheetPickerNote").textContent=`${pendingFileName} contains ${sheetNames.length} sheets. Choose the one that contains your opportunity data.`;
-    $("sheetPicker").classList.remove("hidden");
+    showImportFeedback("reading",pendingFileName,sheetNames.length+" worksheets detected · Select the one with your pipeline.");
+     $("sheetPicker").classList.remove("hidden");
     $("mappingSection").classList.add("hidden");
     $("results").classList.add("hidden");
     $("sheetPicker").scrollIntoView({behavior:"smooth",block:"center"});
   }catch(err){
     console.error(err);
-    alert("I couldn't read that Excel file. Please confirm it is a valid .xlsx or .xls workbook and try again.");
+    showImportFeedback("error","Could not read workbook","Confirm it is a valid .xlsx or .xls file, then try again.");
   }
 }
 
@@ -672,22 +676,24 @@ function handlePipelineFile(file){
   activeSourceDetail="";
   $("sampleReady").classList.remove("visible");
   $("sheetPicker").classList.add("hidden");
-  const name=(file.name||"").toLowerCase();
+  showImportFeedback("reading",activeFileName,"Reading pipeline file…");
+   setFlowStep("source");
+   const name=(file.name||"").toLowerCase();
   if(name.endsWith(".xlsx") || name.endsWith(".xls")){
     const reader=new FileReader();
     reader.onload=()=>openWorkbook(reader.result,file.name);
-    reader.onerror=()=>alert("I couldn't read that Excel file. Please try again.");
+    reader.onerror=()=>showImportFeedback("error","File read failed","Check access to the Excel file and try again.");
     reader.readAsArrayBuffer(file);
     return;
   }
   if(name.endsWith(".csv") || file.type==="text/csv" || !name.includes(".")){
     const reader=new FileReader();
     reader.onload=()=>{activeSheetName="";loadText(reader.result)};
-    reader.onerror=()=>alert("I couldn't read that CSV file. Please try again.");
+    reader.onerror=()=>showImportFeedback("error","File read failed","Check access to the CSV file and try again.");
     reader.readAsText(file);
     return;
   }
-  alert("Please choose a CSV, .xlsx, or .xls pipeline export.");
+  showImportFeedback("error","Unsupported file type","Choose a CSV, .xlsx, or .xls pipeline export.");
 }
 
 function tokens(s){return new Set(normalize(s).split(" ").filter(Boolean))}
@@ -844,7 +850,8 @@ function updateMappingSummary(){
   const review=fieldDefs.filter(([key])=>mapping[key] && !mappingMeta[key]?.manual && mappingMeta[key]?.score<78).length;
   $("mappingSummary").innerHTML=`<strong>${mapped} of ${fieldDefs.length} fields mapped</strong>${coreMapped}/${coreFieldKeys.size} core fields ready${ignored.length?` · ${ignored.length} source column${ignored.length===1?"":"s"} unused`:""}`;
   const missingCore=fieldDefs.filter(([key])=>coreFieldKeys.has(key)&&!mapping[key]).map(([,label])=>label);
-  $("mappingActionNote").textContent=missingCore.length
+  $("mappingActionNote").classList.toggle("has-warning",Boolean(missingCore.length||review));
+   $("mappingActionNote").textContent=missingCore.length
     ? `Core fields still unmapped: ${missingCore.join(", ")}. You can still analyze, but the result will be less complete.`
     : review
       ? `${review} suggested match${review===1?"":"es"} marked Check. Review ${review===1?"it":"them"} before analyzing.`
@@ -863,7 +870,8 @@ function renderMapping(){
     fieldDefs.filter(([key])=>coreFieldKeys.has(key)===group.core).forEach(([key,label])=>{
       const div=document.createElement("div");
       const meta=mappingMeta[key]||{score:0,manual:false};
-      const conf=meta.manual && mapping[key]?{label:"Manual",cls:"manual"}:confidenceFor(meta.score||0);
+      const base=confidenceFor(meta.score||0);
+       const conf=meta.manual && mapping[key]?{label:"Confirmed",cls:"manual"}:mapping[key]?{label:"Auto · "+base.label,cls:base.cls}:base;
       div.className=`map-item ${conf.cls==="check"?"check":conf.cls==="unmapped"?"unmapped":""}`;
       const opts=['<option value="">Not mapped</option>'].concat(headers.map(h=>`<option value="${esc(h)}" ${mapping[key]===h?'selected':''}>${esc(h)}</option>`));
       div.innerHTML=`
@@ -874,12 +882,14 @@ function renderMapping(){
             <span class="match-badge ${conf.cls}" title="${esc(meta.reason||"")}">${conf.label}</span>
           </div>
         </div>
-        <select id="map-${key}" data-key="${key}">${opts.join("")}</select>
+        <div class="map-control"><select id="map-${key}" data-key="${key}">${opts.join("")}</select>${headers.length>8?`<button class="map-search-toggle" type="button" data-search-key="${key}" aria-controls="search-${key}" aria-expanded="false">Search</button>`:""}</div>
+         ${headers.length>8?`<input class="map-search hidden" type="search" data-search-key="${key}" id="search-${key}" aria-label="Filter source columns for ${esc(label)}" placeholder="Filter columns…" autocomplete="off" />`:""}
         <div class="map-sample"><b>${mapping[key]?esc(mapping[key]):"No match"}</b> · ${esc(sampleText(mapping[key]))}</div>`;
       grid.appendChild(div);
     });
   });
   grid.querySelectorAll("select").forEach(sel=>sel.onchange=e=>setMapping(e.target.dataset.key,e.target.value));
+   wireMappingSearch();
   updateMappingSummary();
 }
 
