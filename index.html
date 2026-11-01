@@ -273,6 +273,31 @@ li{line-height:1.65}
  .ledger-group{padding:6px 0 6px 14px}.ledger-entry-heading{gap:6px}.ledger-entry-heading .severity{margin-left:0}
  .footer{flex-wrap:wrap;gap:8px}
 }
+
+/* Workflow and control refinement */
+.flow-progress{margin:0 0 20px;background:var(--white);border:1px solid #E6E1D8;border-radius:14px;padding:15px 20px}
+.flow-progress ol{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));list-style:none;margin:0;padding:0;gap:12px}
+.flow-progress li{display:flex;align-items:center;gap:10px;color:#6C7979;font-size:12px;line-height:1.4;font-weight:600}
+.flow-num{display:grid;place-items:center;width:27px;height:27px;border:1px solid #CFCFC7;border-radius:50%;background:#F4F1EA;color:#546166;flex:0 0 auto;font-variant-numeric:tabular-nums}
+.flow-progress li.current{color:var(--navy)}.flow-progress li.current .flow-num{background:var(--navy);color:#fff;border-color:var(--navy)}
+.flow-progress li.complete{color:#176363}.flow-progress li.complete .flow-num{background:#E6F2EE;border-color:#B9DCD3;color:#176363;font-size:0}
+.flow-progress li.complete .flow-num::after{content:"✓";font-size:13px}
+.crm-connection{margin-top:12px;padding:12px;border:1px solid #D6E4DD;border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.crm-connection[hidden]{display:none}.crm-indicator{font-size:12px;color:#456259;display:inline-flex;align-items:center;gap:8px;font-weight:600}
+.crm-dot{height:8px;width:8px;background:#22836E;display:inline-block;border-radius:50%;flex:0 0 auto}
+.crm-disconnect{min-height:34px;padding:7px 10px;border:1px solid #CBD6CF;background:#fff;color:#344448;font-size:12px}
+.crm-disconnect:disabled{opacity:.6;cursor:wait}
+.import-feedback{margin-top:13px;padding:12px 13px;border:1px solid #D5E4DE;background:#F2F8F5;border-radius:10px;text-align:left;font-size:12px;line-height:1.5}
+.import-feedback.hidden{display:none!important}.import-feedback.is-reading{background:#F3F6F5;border-color:#D9E0DE}
+.import-feedback.is-error{background:#FFF4EF;border-color:#EBD0C4}.import-feedback strong{display:block;color:var(--navy);font-size:13px;overflow-wrap:anywhere}
+.import-feedback.is-error strong{color:#923F3F}.import-feedback span{display:block;color:#5C6C70;margin-top:3px;overflow-wrap:anywhere}
+.map-control{display:flex;gap:6px;align-items:stretch;min-width:0}.map-control select{min-width:0;flex:1}
+.map-search-toggle{min-height:42px;font-size:11px;font-weight:600;padding:7px 9px;border:1px solid #C9D5D0;background:#F1F5F1;color:#31514B;flex:0 0 auto}
+.map-search{margin-top:7px;width:100%;min-height:38px;padding:8px 10px;border-radius:8px;border:1px solid #9CB8B2;background:#fff;color:var(--ink);font:inherit;font-size:13px}
+.map-search:focus-visible,input[type=search]:focus-visible{outline:3px solid #087575;outline-offset:2px}
+.match-badge{font-size:10px;letter-spacing:0;text-transform:none;padding:4px 7px}
+.map-badges{flex-wrap:wrap;justify-content:flex-end}.map-item-top{align-items:flex-start}#mappingActionNote.has-warning{color:#88512A}
+@media(max-width:600px){.flow-progress{padding:12px}.flow-progress ol{gap:7px}.flow-progress li{gap:6px;font-size:10px}.flow-num{width:22px;height:22px}.crm-connection{flex-wrap:wrap}}
 </style>
 </head>
 <body>
@@ -285,6 +310,11 @@ li{line-height:1.65}
       <div class="privacy">🔒 Uploaded files stay in your browser. Connected CRM imports are read-only and are not stored by Cairn.</div>
     </div>
   </header>
+  <nav class="flow-progress" aria-label="Analysis workflow"><ol>
+    <li data-flow="source" class="current" aria-current="step"><span class="flow-num">1</span><span>Choose source</span></li>
+    <li data-flow="mapping"><span class="flow-num">2</span><span>Review fields</span></li>
+    <li data-flow="results"><span class="flow-num">3</span><span>Evidence audit</span></li>
+  </ol></nav>
 
   <section class="upload">
     <div class="entry-grid">
@@ -297,6 +327,7 @@ li{line-height:1.65}
           <span>or click to choose a file</span>
         </label>
         <input id="fileInput" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" />
+         <div id="importFeedback" class="import-feedback hidden" role="status" aria-live="polite"><strong id="importFeedbackTitle"></strong><span id="importFeedbackDetail"></span></div>
       </div>
 
       <div class="entry-card crm">
@@ -304,7 +335,11 @@ li{line-height:1.65}
         <h2>Import deals directly</h2>
         <p>Connect HubSpot and send your open deals through Cairn's same field-mapping review.</p>
         <button id="hubspotBtn" class="crm-btn" type="button">Connect HubSpot →</button>
-        <div id="hubspotStatus" class="crm-note">No CRM records are stored by Cairn.</div>
+        <div id="hubspotStatus" class="crm-note" role="status" aria-live="polite">No CRM records are stored by Cairn.</div>
+         <div id="hubspotConnection" class="crm-connection" hidden>
+           <span class="crm-indicator"><span class="crm-dot" aria-hidden="true"></span><span id="hubspotConnectedLabel">HubSpot connected · read-only</span></span>
+           <button id="hubspotDisconnect" class="crm-disconnect" type="button">Disconnect</button>
+         </div>
       </div>
 
       <div class="entry-card demo">
@@ -354,7 +389,7 @@ li{line-height:1.65}
     </div>
     <div id="mappingGrid" class="mapping-grid"></div>
     <div class="mapping-actions">
-      <div id="mappingActionNote" class="hint" style="margin:0"></div>
+      <div id="mappingActionNote" class="hint" style="margin:0" role="status" aria-live="polite"></div>
       <button id="analyzeBtn" class="primary">Analyze pipeline →</button>
     </div>
   </section>
@@ -461,6 +496,50 @@ let rawRows=[], headers=[], mapping={}, mappingMeta={}, analyzed=[], demoMode=fa
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
 
+function setFlowStep(step){
+  const order=["source","mapping","results"],current=order.indexOf(step);
+  document.querySelectorAll("[data-flow]").forEach(el=>{
+    const at=order.indexOf(el.dataset.flow);
+    el.classList.toggle("current",at===current);
+    el.classList.toggle("complete",at<current);
+    if(at===current)el.setAttribute("aria-current","step");else el.removeAttribute("aria-current");
+  });
+}
+function showImportFeedback(kind,title,detail){
+  $("importFeedback").className="import-feedback is-"+kind;
+  $("importFeedbackTitle").textContent=title;
+  $("importFeedbackDetail").textContent=detail||"";
+}
+function hideImportFeedback(){$("importFeedback").classList.add("hidden");}
+function setHubSpotConnectionState(state,hubId){
+  $("hubspotConnection").hidden=state!=="connected";
+  if(state==="connected")$("hubspotConnectedLabel").textContent="HubSpot connected · read-only"+(hubId?" · Portal "+String(hubId):"");
+}
+function filterMappingOptions(key,search){
+  const select=$("map-"+key);if(!select)return;
+  const selected=mapping[key]||"",q=normalize(search);
+  select.replaceChildren(new Option("Not mapped",""));
+  headers.filter(h=>!q||normalize(h).includes(q)||h===selected).forEach(h=>select.add(new Option(h,h,false,h===selected)));
+  select.value=selected;
+}
+function wireMappingSearch(){
+  document.querySelectorAll(".map-search-toggle").forEach(btn=>btn.addEventListener("click",()=>{
+    const input=$("search-"+btn.dataset.searchKey),opening=input.classList.contains("hidden");
+    input.classList.toggle("hidden",!opening);btn.setAttribute("aria-expanded",String(opening));
+    if(opening)input.focus();else{input.value="";filterMappingOptions(btn.dataset.searchKey,"");}
+  }));
+  document.querySelectorAll(".map-search").forEach(input=>{
+    const key=input.dataset.searchKey;
+    input.addEventListener("input",()=>filterMappingOptions(key,input.value));
+    input.addEventListener("keydown",e=>{
+      if(e.key==="Escape"){
+        input.value="";filterMappingOptions(key,"");input.classList.add("hidden");
+        const toggle=document.querySelector('[data-search-key="'+key+'"].map-search-toggle');
+        if(toggle){toggle.setAttribute("aria-expanded","false");toggle.focus();}
+      }else if(e.key==="ArrowDown"){e.preventDefault();$("map-"+key).focus();}
+    });
+  });
+}
 function normalize(s){
   return String(s||"")
     .replace(/([a-z0-9])([A-Z])/g,"$1 $2")
