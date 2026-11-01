@@ -337,6 +337,15 @@ li{line-height:1.65}
   .entry-grid{grid-template-columns:minmax(0,1fr);gap:14px}
   .entry-grid>.entry-card{padding:20px}
 }
+
+/* Small locally hosted CRM marks; keep the action labels and existing button behavior. */
+.entry-actions>.crm-btn{display:flex;align-items:center;justify-content:center;gap:9px;text-align:center}
+.entry-actions>.crm-btn::before{
+  content:"";display:block;width:20px;height:20px;flex:0 0 20px;
+  background-repeat:no-repeat;background-position:center;background-size:contain
+}
+#hubspotBtn::before{background-image:url("./assets/hubspot-mark.svg")}
+#salesforceBtn::before{background-image:url("./assets/salesforce-mark.svg")}
 </style>
 </head>
 <body>
