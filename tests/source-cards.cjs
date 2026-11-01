@@ -49,6 +49,29 @@ const path = require("node:path");
       }
       console.log("PASS source cards:",sample.width+"px",sample.columns+" columns");
     }
+    // The marks are CSS backgrounds rather than DOM children, so dynamic
+    // changes to button.textContent during OAuth/import never remove the icons.
+    const marks=await page.evaluate(()=>{
+      return ["hubspotBtn","salesforceBtn"].map(id=>{
+        const node=document.getElementById(id);
+        const iconStyle=getComputedStyle(node,"::before");
+        return {id,display:getComputedStyle(node).display,
+          background:iconStyle.backgroundImage,width:iconStyle.width,height:iconStyle.height};
+      });
+    });
+    for (const mark of marks){
+      assert.equal(mark.display,"flex",mark.id+" must remain a centered flex button");
+      assert.match(mark.background,/assets\\/(hubspot|salesforce)-mark\\.svg/,"Brand asset missing for "+mark.id);
+      assert.equal(mark.width,"20px");
+      assert.equal(mark.height,"20px");
+    }
+    await page.evaluate(()=>{
+      document.getElementById("hubspotBtn").textContent="Import from HubSpot →";
+      document.getElementById("salesforceBtn").textContent="Import from Salesforce →";
+    });
+    const stillVisible=await page.evaluate(()=>["hubspotBtn","salesforceBtn"].every(id=>
+      getComputedStyle(document.getElementById(id),"::before").backgroundImage.includes("-mark.svg")));
+    assert(stillVisible,"CRM logos must persist when button labels change");
     await page.setViewportSize({width:1440,height:900});
     await page.evaluate(()=>{
       const box=document.getElementById("salesforceConnection");
