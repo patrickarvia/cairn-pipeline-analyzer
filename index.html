@@ -1404,7 +1404,7 @@ async function refreshSalesforceStatus(){
     btn.textContent=salesforceConnected?"Import from Salesforce →":"Connect Salesforce →";
     note.className=`crm-note ${salesforceConnected?"good":""}`;
     note.textContent=salesforceConnected
-      ?"Connected · read-only session · import open deals when ready."
+      ?"Connected · read-only session · import open opportunities when ready."
       :"Read-only OAuth · no CRM records are stored by Cairn.";
   }catch{
     salesforceConnected=false;
@@ -1420,9 +1420,9 @@ async function importSalesforceOpportunities(){
   const btn=$("salesforceBtn"), note=$("salesforceStatus");
   const original=btn.textContent;
   btn.disabled=true;
-  btn.textContent="Importing deals…";
+  btn.textContent="Importing opportunities…";
   note.className="crm-note";
-  note.textContent="Reading open deals and available deal properties…";
+  note.textContent="Reading open opportunities and accessible evidence fields…";
   try{
     const response=await fetch("/api/salesforce/opportunities",{headers:{"Accept":"application/json"},cache:"no-store"});
     const data=await response.json();
@@ -1435,7 +1435,7 @@ async function importSalesforceOpportunities(){
       note.textContent=data.error||"Your Salesforce session expired.";
       return;
     }
-    if(!response.ok) throw new Error(data.error||"Could not import Salesforce deals.");
+    if(!response.ok) throw new Error(data.error||"Could not import Salesforce opportunities.");
     if(!Array.isArray(data.rows)||!data.rows.length){
       throw new Error("No open Salesforce opportunities were available to import.");
     }
@@ -1443,12 +1443,11 @@ async function importSalesforceOpportunities(){
     demoMode=false;
     activeFileName="Salesforce CRM";
     activeSheetName="";
-    activeSourceDetail=`${data.importedDeals} open deal${data.importedDeals===1?"":"s"}`;
-    showImportFeedback("reading","Salesforce import","Mapping imported deal properties…");
+    activeSourceDetail=`${data.importedDeals} open opportunit${data.importedDeals===1?"y":"ies"}`;
+    showImportFeedback("reading","Salesforce import","Mapping imported opportunity fields…");
     $("sampleReady").classList.remove("visible");
     $("sheetPicker").classList.add("hidden");
     if(loadParsed({headers:data.headers,rows:data.rows},"Salesforce")){
-      
       renderMapping();
       note.className="crm-note good";
       
