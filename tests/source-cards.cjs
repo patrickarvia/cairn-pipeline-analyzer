@@ -61,7 +61,7 @@ const path = require("node:path");
     });
     for (const mark of marks){
       assert.equal(mark.display,"flex",mark.id+" must remain a centered flex button");
-      assert.match(mark.background,/assets\\/(hubspot|salesforce)-mark\\.svg/,"Brand asset missing for "+mark.id);
+      assert(mark.background.includes("assets/"+mark.id.replace("Btn","").toLowerCase()+"-mark.svg"),"Brand asset missing for "+mark.id);
       assert.equal(mark.width,"20px");
       assert.equal(mark.height,"20px");
     }
