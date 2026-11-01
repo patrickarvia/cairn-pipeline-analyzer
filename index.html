@@ -298,6 +298,22 @@ li{line-height:1.65}
 .match-badge{font-size:10px;letter-spacing:0;text-transform:none;padding:4px 7px}
 .map-badges{flex-wrap:wrap;justify-content:flex-end}.map-item-top{align-items:flex-start}#mappingActionNote.has-warning{color:#88512A}
 @media(max-width:600px){.flow-progress{padding:12px}.flow-progress ol{gap:7px}.flow-progress li{gap:6px;font-size:10px}.flow-num{width:22px;height:22px}.crm-connection{flex-wrap:wrap}}
+
+/* Analysis feedback and restrained results transitions */
+.analysis-progress{margin-top:20px;display:flex;align-items:flex-start;gap:13px;border:1px solid #D0DFD9;background:#F2F7F4;border-radius:14px;padding:17px 18px;color:var(--ink)}
+.analysis-progress.hidden{display:none!important}.analysis-progress.is-error{border-color:#EBD0C4;background:#FFF4EF}
+.progress-mark{width:17px;height:17px;flex:0 0 auto;border:2px solid #D8E8E4;border-top-color:#087575;border-radius:50%;margin-top:3px;animation:cairn-spin .75s linear infinite}
+.analysis-progress.is-error .progress-mark{border-color:#B56653;animation:none}
+.analysis-progress strong{display:block;font-size:14px;font-weight:650}
+.analysis-progress p{margin:3px 0 0;color:#5C6C70;font-size:12px;line-height:1.6}
+.results-insight{font-size:14px;line-height:1.6;color:#516468;margin:10px 0 0;max-width:770px}
+.empty-state{border:1px solid #E2E5DC;border-radius:12px;background:#F6F7F3;padding:19px;color:#596967;font-size:13px;line-height:1.65}
+.results.reveal>.kpis>.kpi{animation:cairn-rise .35s ease both}
+.results.reveal>.kpis>.kpi:nth-child(2){animation-delay:.06s}
+.results.reveal>.kpis>.kpi:nth-child(3){animation-delay:.12s}
+@keyframes cairn-spin{to{transform:rotate(360deg)}}
+@keyframes cairn-rise{from{opacity:.45;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.analysis-progress .progress-mark,.results.reveal>.kpis>.kpi{animation:none!important}}
 </style>
 </head>
 <body>
@@ -394,12 +410,18 @@ li{line-height:1.65}
     </div>
   </section>
 
+  <div id="analysisProgress" class="analysis-progress hidden" role="status" aria-live="polite" aria-atomic="true">
+    <span class="progress-mark" aria-hidden="true"></span>
+    <div><strong id="analysisProgressTitle">Reviewing pipeline evidence</strong><p id="analysisProgressDetail"></p></div>
+  </div>
+
   <section id="results" class="results hidden">
     <div class="results-head">
       <div>
         <div class="eyebrow">PIPELINE INTELLIGENCE</div>
         <h2>Pipeline evidence audit</h2>
         <div id="resultsSource" class="source-context results-source"></div>
+        <p id="resultsInsight" class="results-insight"></p>
       </div>
       <div id="demoResultsLabel" class="demo-results-label">Sample data</div>
     </div>
@@ -968,7 +990,7 @@ function proofDetails(d,queue=false){
   return `<dl class="proof-details"><dt>${queue?"Current gap":"Current gap:"}</dt><dd>${esc(p.claimLabel)} · ${esc(p.currentState)}</dd><dt>${queue?"Next proof":"Proof required:"}</dt><dd>${esc(p.proofRequired)}</dd><dt>${queue?"Target evidence":"Target evidence:"}</dt><dd>${esc(p.targetState)}</dd>${queue?`<dt>Proof is satisfied when</dt><dd>${esc(p.supportedWhen)}</dd>`:""}</dl>${extra?`<div class="hint">${queue?`+ ${extra} additional blocking proof requirement${extra===1?"":"s"} remain`:`Additional blocking proof requirements: ${extra}`}</div>`:""}`;
 }
 function renderProofQueue(){
-  $("proofQueue").innerHTML=proofQueue(analyzed).map(d=>`<article class="deal"><div class="deal-name">${esc(d.name)}</div><div class="meta">${fmtMoney(d.amount)} • ${esc(d.stage)}${d.forecast?` • ${esc(d.forecast)}`:""}</div>${proofDetails(d,true)}</article>`).join("")||'<div class="empty">No blocking proof is required for the current pipeline.</div>';
+  $("proofQueue").innerHTML=proofQueue(analyzed).map(d=>`<article class="deal"><div class="deal-name">${esc(d.name)}</div><div class="meta">${fmtMoney(d.amount)} • ${esc(d.stage)}${d.forecast?` • ${esc(d.forecast)}`:""}</div>${proofDetails(d,true)}</article>`).join("")||'<div class="empty-state">No blocking proof is required for the current pipeline.</div>';
 }
 
 function analyzeRow(row, referenceDate=new Date()){
@@ -1082,7 +1104,7 @@ function renderContradictions(){
   $("contradictionLedger").innerHTML=analyzed.filter(d=>d.contradictions.length).map(d=>`<article class="deal ledger-group">
     <div class="deal-top"><div><div class="deal-name">${esc(d.name)}</div><div class="meta">${fmtMoney(d.amount)} · ${esc(d.stage)} · ${esc(d.forecast||"No forecast category")}</div></div><span class="severity ${highestSeverity(d)}">${highestSeverity(d)}</span></div>
     ${d.contradictions.map(c=>`<section class="ledger-entry"><div class="ledger-entry-heading"><h4>${esc(c.title)}</h4><span class="severity ${c.severity}">${c.severity}</span></div><dl><dt>CRM claim</dt><dd>${esc(c.crmClaim)}</dd><dt>Evidence conflict</dt><dd>${c.evidenceConflicts.length>1?`<ul class="ledger-conflicts">${c.evidenceConflicts.map(conflict=>`<li>${esc(conflict)}</li>`).join("")}</ul>`:esc(c.evidenceConflict)}</dd><dt>Why this matters</dt><dd>${esc(c.explanation)}</dd></dl></section>`).join("")}
-  </article>`).join("")||'<p class="empty">No contradictions found under the current rules. Evidence gaps may still remain.</p>';
+  </article>`).join("")||'<div class="empty-state">No contradictions found under the current rules. Evidence gaps may still remain.</div>';
 }
 function filterDeals(deals,evidence,contradiction){
   return deals.filter(d=>(evidence==="All"||d.status===evidence)&&(contradiction==="All"||
@@ -1101,17 +1123,52 @@ function summarize(deals){
   return {total,supported,gap:total-supported,supportedCount:supportedDeals.length,dependentCount:dependentDeals.length,deductions};
 }
 
-function runAnalysis(){
-  analyzed=rawRows.map(row=>analyzeRow(row));
-  renderSourceContext();
-  renderResults();
-  $("demoResultsLabel").classList.toggle("visible", demoMode);
-  setTimeout(()=>$("results").scrollIntoView({behavior:"smooth",block:"start"}),80);
+let analysisActive=false;
+function showAnalysisProgress(kind,title,detail){
+  const el=$("analysisProgress");
+  el.className="analysis-progress"+(kind==="error"?" is-error":"");
+  $("analysisProgressTitle").textContent=title;
+  $("analysisProgressDetail").textContent=detail||"";
+}
+async function runAnalysis(){
+  if(analysisActive)return;
+  if(!rawRows.length){
+    showAnalysisProgress("error","No pipeline data loaded","Choose a CSV, Excel workbook, HubSpot import, or sample pipeline first.");
+    return;
+  }
+  analysisActive=true;
+  $("analyzeBtn").disabled=true;$("analyzeSampleBtn").disabled=true;
+  $("results").classList.add("hidden");$("results").classList.remove("reveal");
+  setFlowStep("mapping");
+  showAnalysisProgress("working","Reviewing mapped evidence","Starting review of "+rawRows.length+" opportunities…");
+  try{
+    const next=[],batchSize=60;
+    for(let i=0;i<rawRows.length;i+=batchSize){
+      await new Promise(resolve=>requestAnimationFrame(resolve));
+      rawRows.slice(i,i+batchSize).forEach(row=>next.push(analyzeRow(row)));
+      showAnalysisProgress("working","Reviewing mapped evidence",next.length+" of "+rawRows.length+" opportunities evaluated");
+    }
+    analyzed=next;
+    showAnalysisProgress("working","Preparing evidence audit","Compiling supported pipeline, contradictions, and next proof.");
+    await new Promise(resolve=>requestAnimationFrame(resolve));
+    renderSourceContext();renderResults();
+    $("demoResultsLabel").classList.toggle("visible",demoMode);
+    setFlowStep("results");$("results").classList.add("reveal");
+    $("analysisProgress").classList.add("hidden");
+    setTimeout(()=>$("results").scrollIntoView({behavior:"smooth",block:"start"}),80);
+  }catch(err){
+    console.error("Pipeline analysis failed",err);
+    $("results").classList.add("hidden");
+    showAnalysisProgress("error","Analysis could not complete","Your source data has not been changed. Review the field mapping and try again.");
+  }finally{
+    analysisActive=false;$("analyzeBtn").disabled=false;$("analyzeSampleBtn").disabled=false;
+  }
 }
 
 function renderResults(){
   $("results").classList.remove("hidden");
   const audit=summarize(analyzed);
+  $("resultsInsight").textContent=audit.supportedCount+" of "+analyzed.length+" opportunities are evidence-supported; "+audit.dependentCount+" require additional proof before their CRM position can be defended.";
   $("kTotal").textContent=fmtMoney(audit.total); $("kDeals").textContent=`${analyzed.length} deal${analyzed.length===1?"":"s"} in CRM`;
   $("kSupported").textContent=fmtMoney(audit.supported); $("kSupportedDeals").textContent=`${audit.supportedCount} defensible deals`;
   $("kGap").textContent=fmtMoney(audit.gap); $("kGapDeals").textContent=`${audit.dependentCount} assumption-dependent deals`;
